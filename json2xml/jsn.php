@@ -40,7 +40,7 @@ define("ERROR_PARAMS", 1);
 define("ERROR_READ", 2);
 define("ERROR_WRITE", 3);
 define("ERROR_FORMAT", 4);
-define("ERROR_ROOT_ELEM", 50);
+define("ERROR_XML_NAME", 50);
 define("ERROR_CHARS_SUBST", 51);
 
 
@@ -207,7 +207,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
             
             if (xml_validate_name($value) == false) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: Invalid array element name or attribute!\n");
-              exit(ERROR_ROOT_ELEM);
+              exit(ERROR_XML_NAME);
             }
 
             $PARAMS["array_name"] = $value;
@@ -231,7 +231,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
             if (xml_validate_name($value) == false) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: Invalid item element name or attribute!\n");
-              exit(ERROR_ROOT_ELEM);
+              exit(ERROR_XML_NAME);
             }
 
             $PARAMS["item_name"] = $value;
@@ -306,7 +306,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
             
             if (xml_validate_name($value) == false) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: Invalid root element name or attribute!\n");
-              exit(ERROR_ROOT_ELEM);
+              exit(ERROR_XML_NAME);
             }
             
             $PARAMS["root_element"] = $value;
