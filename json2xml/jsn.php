@@ -54,11 +54,15 @@ $PARAMS["output_fname"] = NULL;             # --output
 
 $PARAMS["ill_chars_substitute"] = NULL;     # -h
 $PARAMS["generate_header"] = NULL;          # -n
+
 $PARAMS["root_element"] = NULL;             # -r
 $PARAMS["root_element_attr"] = NULL;        # Storage in case -r also has an anttribute specified.
 
 $PARAMS["array_name"] = NULL;               # --array-name
+$PARAMS["array_name_attr"] = NULL;          # Storage in case --array-name has an attribute specified.
+
 $PARAMS["item_name"] = NULL;                # --item-name
+$PARAMS["item_name_attr"] = NULL;           # Storage in case --item-name has an attribute specified.
 
 $PARAMS["string_transform"] = NULL;         # -s
 $PARAMS["number_transform"] = NULL;         # -i
@@ -90,6 +94,29 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
   {{{
     # TODO: Write text of usage.
   }}}
+  
+  # Function for testing if given string has a proper XML name for an element. Returns TRUE if the string is valid, FALSE
+  # otherwise. It also accepts the name and the attribute, which can be used in element name.
+  function xml_validate_name($string)
+  {{{
+    return (preg_match('/^(?!XML|\p{P}|\p{N})[\p{L}\p{N}\.-_]+[[:space:]]*$/i', $string) === 1 ||
+            preg_match('/^(?!XML|\p{P}|\p{N})[\p{L}\p{N}\.-_]+[[:space:]]+[\p{L}\p{N}\.-_]+="[^"]*"[[:space:]]*$/i', $string) === 1);
+  }}}
+
+
+  # Function for splitting value of parameter of given name into XML name & XML attribute in case an attribute is found.
+  function xml_name_attr_split($param_name)
+  {{{
+    global $PARAMS;
+
+    if (preg_match('/[\p{L}\p{N}\.-_]+="[^"]*"[[:space:]]*$/i', $PARAMS[$param_name], $match, PREG_OFFSET_CAPTURE) === 1) {
+      $PARAMS[$param_name . "_attr"] = chop($match[0][0]);
+      $PARAMS[$param_name] = chop(substr($PARAMS[$param_name], 0, $match[0][1]));
+    }
+
+    return;
+  }}}
+
 
   # Function for testing & processing parameters given to the script. Exits with error message in case of wrong
   # parameter / wrongly used parameter. It also initializes the default values for unused parameters. No return value.
@@ -177,6 +204,11 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
               fwrite(STDERR, SCRIPT_NAME . ": Error: '--array-name' used, but no array name was specified!\n");
               exit(ERROR_PARAMS);
             }
+            
+            if (xml_validate_name($value) == false) {
+              fwrite(STDERR, SCRIPT_NAME . ": Error: Invalid array element name or attribute!\n");
+              exit(ERROR_ROOT_ELEM);
+            }
 
             $PARAMS["array_name"] = $value;
           }
@@ -195,6 +227,11 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
             if ($value == NULL) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: '--item-name' used, but no item name was specified!\n");
               exit(ERROR_PARAMS);
+            }
+
+            if (xml_validate_name($value) == false) {
+              fwrite(STDERR, SCRIPT_NAME . ": Error: Invalid item element name or attribute!\n");
+              exit(ERROR_ROOT_ELEM);
             }
 
             $PARAMS["item_name"] = $value;
@@ -267,17 +304,12 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
               exit(ERROR_PARAMS);
             }
             
-            # Testing if given root element name and attribute (if specified) have correct format:
-            if (preg_match('/^(?!XML|\p{P}|\p{N})[\p{L}\p{N}\.-_]+[[:space:]]*$/i', $value) === 1 ||
-                preg_match('/^(?!XML|\p{P}|\p{N})[\p{L}\p{N}\.-_]+[[:space:]]+[\p{L}\p{N}\.-_]+="[^"]*"[[:space:]]*$/i', $value) === 1) {
-              
-              $PARAMS["root_element"] = $value;
-            }
-            else {
+            if (xml_validate_name($value) == false) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: Invalid root element name or attribute!\n");
               exit(ERROR_ROOT_ELEM);
             }
-
+            
+            $PARAMS["root_element"] = $value;
           }
           else {
             fwrite(STDERR, SCRIPT_NAME . ": Error: Root element name already specified!\n");
@@ -431,13 +463,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
     }
 
     # ###################################################################################################################
-      
-    # Splitting the content of root element if it contains any attributes:
-    if (preg_match('/[\p{L}\p{N}\.-_]+="[^"]*"[[:space:]]*$/i', $PARAMS["root_element"], $match, PREG_OFFSET_CAPTURE) === 1) {
-      $PARAMS["root_element_attr"] = chop($match[0][0]);
-      $PARAMS["root_element"] = chop(substr($PARAMS["root_element"], 0, $match[0][1]));
-    }
-    
+
     # Additional testing of '--start' parameter:
     if ($PARAMS["counter_init"] == true && $PARAMS["index_items"] == NULL) {
       fwrite(STDERR, SCRIPT_NAME . ": Error: '--start' used, but '-t' or '--index-items' is missing!\n");
@@ -445,7 +471,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
     }
 
 
-    # Setting default values if needed:
+    # Setting default values if needed, or doing additional processing:
     if ($PARAMS["input_fname"] == NULL) {
       $PARAMS["input_fname"] = STDIN;
     }
@@ -458,17 +484,28 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
       $PARAMS["ill_chars_substitute"] = "-";
     }
 
+    if ($PARAMS["counter_init"] == NULL) {
+      $PARAMS["counter_init"] = 1;
+    }
+
     if ($PARAMS["array_name"] == NULL) {
       $PARAMS["array_name"] = "array";
+    }
+    else {
+      xml_name_attr_split("array_name");                # Attribute seperation if needed.
     }
 
     if ($PARAMS["item_name"] == NULL) {
       $PARAMS["item_name"] = "item";
     }
-
-    if ($PARAMS["counter_init"] == NULL) {
-      $PARAMS["counter_init"] = 1;
+    else {
+      xml_name_attr_split("item_name");                 # Attribute seperation if needed.
     }
+
+    if ($PARAMS["root_element"] != NULL) {
+      xml_name_attr_split("root_element");              # Attribute seperation if needed.
+    }
+
 
     # Setting other non-initialized values to false:
     foreach($PARAMS as $key => $value) {
@@ -476,6 +513,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
         $PARAMS[$key] = false;
       }
     }
+
 
     return;
   }}}
@@ -487,7 +525,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
   params_process();
 
-//   var_dump($PARAMS);
+  var_dump($PARAMS);
 
   exit(0);
 ?>
