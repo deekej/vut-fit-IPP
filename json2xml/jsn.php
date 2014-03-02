@@ -40,6 +40,8 @@ define("ERROR_PARAMS", 1);
 define("ERROR_READ", 2);
 define("ERROR_WRITE", 3);
 define("ERROR_FORMAT", 4);
+define("ERROR_ROOT_ELEM", 50);
+define("ERROR_CHARS_SUBST", 51);
 
 
 # ##################################################################################################################### #
@@ -50,22 +52,23 @@ define("ERROR_FORMAT", 4);
 $PARAMS["input_fname"] = NULL;              # --input
 $PARAMS["output_fname"] = NULL;             # --output
 
-$PARAMS["chars_substitute"] = NULL;         # -h
-$PARAMS["chars_translate"] = NULL;          # -c
-
+$PARAMS["ill_chars_substitute"] = NULL;     # -h
 $PARAMS["generate_header"] = NULL;          # -n
 $PARAMS["root_element"] = NULL;             # -r
+$PARAMS["root_element_attr"] = NULL;        # Storage in case -r also has an anttribute specified.
 
 $PARAMS["array_name"] = NULL;               # --array-name
-$PARAMS["array_size"] = NULL;               # --array-size | -a
 $PARAMS["item_name"] = NULL;                # --item-name
 
 $PARAMS["string_transform"] = NULL;         # -s
 $PARAMS["number_transform"] = NULL;         # -i
 $PARAMS["literals_transform"] = NULL;       # -l
+$PARAMS["chars_translate"] = NULL;          # -c
 
-$PARAMS["index_items"] = NULL;              # --index-items | -t
-$PARAMS["start_counter"] = NULL;            # --start
+$PARAMS["array_size"] = NULL;               # -a | --array-size
+$PARAMS["index_items"] = NULL;              # -t | --index-items
+
+$PARAMS["counter_init"] = NULL;             # --start
 
 $PARAMS["padding"] = NULL;                  # --padding
 $PARAMS["flattening"] = NULL;               # --flattening
@@ -127,6 +130,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
           break;
 
+
         # ##############
         case "--input" :
      // case "-input" :
@@ -145,6 +149,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
           break;
         
+
         # ###############
         case "--output" :
      // case "-output" :
@@ -162,6 +167,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
           }
 
           break;
+
 
         # ###################
         case "--array-name" :
@@ -181,6 +187,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
           break;
 
+
         # ##################
         case "--item-name" :
      // case "-item-size :
@@ -199,34 +206,50 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
           break;
 
+
         # ##############
         case "--start" :
      // case "-start" :
-          if ($PARAMS["start_counter"] == NULL) {
+          if ($PARAMS["counter_init"] == NULL) {
             if ($value == NULL) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: '--start' used, but no start value was specified!\n");
               exit(ERROR_PARAMS);
             }
             
-            # FIXME: Convert $value from string to integer?
-            $PARAMS["start_counter"] = $value;
+            if (is_numeric($value) == false) {
+              fwrite(STDERR, SCRIPT_NAME . ": Error: '--start' value is not a number!\n");
+              exit(ERROR_PARAMS);               # FIXME: IS this correct return value?
+            }
+
+            if (intval($value) != floatval($value)) {
+              fwrite(STDERR, SCRIPT_NAME . ": Error: '--start' value is not an integer!\n");
+              exit(ERROR_PARAMS);               # FIXME: IS this correct return value?
+            }
+
+            if ($value < 0) {
+              fwrite(STDERR, SCRIPT_NAME . ": Error: '--start' value is not a positive number!\n");
+              exit(ERROR_PARAMS);               # FIXME: Is this correct return value?
+            }
+
+            $PARAMS["counter_init"] = $value;
           }
           else {
-            fwrite(STDERR, SCRIPT_NAME . ": Error: Start counter already initialized!\n");
+            fwrite(STDERR, SCRIPT_NAME . ": Error: Counter value already initialized!\n");
             exit(ERROR_PARAMS);
           }
 
           break;
 
+
         # #########
         case "-h" :
-          if ($PARAMS["chars_substitute"] == NULL) {
+          if ($PARAMS["ill_chars_substitute"] == NULL) {
             if ($value == NULL) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: '-h' used, but no substitution string was specified!\n");
               exit(ERROR_PARAMS);
             }
 
-            $PARAMS["chars_substitute"] = $value;
+            $PARAMS["ill_chars_substitute"] = $value;
           }
           else {
             fwrite(STDERR, SCRIPT_NAME . ": Error: Substitution string already specified!\n");
@@ -235,6 +258,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
           break;
 
+
         # #########
         case "-r" :
           if ($PARAMS["root_element"] == NULL) {
@@ -242,8 +266,18 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
               fwrite(STDERR, SCRIPT_NAME . ": Error: '-r' used, but no root element name was specified!\n");
               exit(ERROR_PARAMS);
             }
+            
+            # Testing if given root element name and attribute (if specified) have correct format:
+            if (preg_match('/^(?!XML|\p{P}|\p{N})[\p{L}\p{N}\.-_]+[[:space:]]*$/i', $value) === 1 ||
+                preg_match('/^(?!XML|\p{P}|\p{N})[\p{L}\p{N}\.-_]+[[:space:]]+[\p{L}\p{N}\.-_]+="[^"]*"[[:space:]]*$/i', $value) === 1) {
+              
+              $PARAMS["root_element"] = $value;
+            }
+            else {
+              fwrite(STDERR, SCRIPT_NAME . ": Error: Invalid root element name or attribute!\n");
+              exit(ERROR_ROOT_ELEM);
+            }
 
-            $PARAMS["root_element"] = $value;
           }
           else {
             fwrite(STDERR, SCRIPT_NAME . ": Error: Root element name already specified!\n");
@@ -252,6 +286,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
           break;
         
+
         # ###################
         case "--array-size" :
      // case "-array-size" :
@@ -265,6 +300,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
           }
 
           break;
+
 
         # ####################
         case "--index-items" :
@@ -280,6 +316,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
           break;
         
+
         # #########
         case "-n" :
           if ($PARAMS["generate_header"] == NULL) {
@@ -291,6 +328,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
           }
 
           break;
+
 
         # #########
         case "-s" :
@@ -304,6 +342,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
           break;
         
+
         # #########
         case "-i" :
           if ($PARAMS["number_transform"] == NULL) {
@@ -315,6 +354,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
           }
 
           break;
+
 
         # #########
         case "-l" :
@@ -328,6 +368,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
           
           break;
 
+
         # #########
         case "-c" :
           if ($PARAMS["chars_translate"] == NULL) {
@@ -339,6 +380,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
           }
 
           break;
+
 
         # ################
         case "--padding" :
@@ -352,6 +394,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
           break;
 
+
         # ###################
         case "--flattening" :
           if ($PARAMS["flattening"] == NULL) {
@@ -363,6 +406,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
           }
 
           break;
+
 
         # #######################
         case "--error-recovery" :
@@ -376,17 +420,62 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
           break;
 
+
         # #######
         default :
-          fwrite(STDERR, SCRIPT_NAME. ": Error: Unknown parameter '" . $param . "' used!\n");
+          fwrite(STDERR, SCRIPT_NAME . ": Error: Unknown parameter '" . $param . "' used!\n");
           display_usage();
           exit(ERROR_PARAMS);
       }
 
     }
 
-    # TODO: setting unused values to false.
-    # TODO: Additional testing.
+    # ###################################################################################################################
+      
+    # Splitting the content of root element if it contains any attributes:
+    if (preg_match('/[\p{L}\p{N}\.-_]+="[^"]*"[[:space:]]*$/i', $PARAMS["root_element"], $match, PREG_OFFSET_CAPTURE) === 1) {
+      $PARAMS["root_element_attr"] = chop($match[0][0]);
+      $PARAMS["root_element"] = chop(substr($PARAMS["root_element"], 0, $match[0][1]));
+    }
+    
+    # Additional testing of '--start' parameter:
+    if ($PARAMS["counter_init"] == true && $PARAMS["index_items"] == NULL) {
+      fwrite(STDERR, SCRIPT_NAME . ": Error: '--start' used, but '-t' or '--index-items' is missing!\n");
+      exit(ERROR_PARAMS);
+    }
+
+
+    # Setting default values if needed:
+    if ($PARAMS["input_fname"] == NULL) {
+      $PARAMS["input_fname"] = STDIN;
+    }
+
+    if ($PARAMS["output_fname"] == NULL) {
+      $PARAMS["output_fname"] = STDOUT;
+    }
+
+    if ($PARAMS["ill_chars_substitute"] == NULL) {
+      $PARAMS["ill_chars_substitute"] = "-";
+    }
+
+    if ($PARAMS["array_name"] == NULL) {
+      $PARAMS["array_name"] = "array";
+    }
+
+    if ($PARAMS["item_name"] == NULL) {
+      $PARAMS["item_name"] = "item";
+    }
+
+    if ($PARAMS["counter_init"] == NULL) {
+      $PARAMS["counter_init"] = 1;
+    }
+
+    # Setting other non-initialized values to false:
+    foreach($PARAMS as $key => $value) {
+      if ($value == NULL) {
+        $PARAMS[$key] = false;
+      }
+    }
 
     return;
   }}}
@@ -397,6 +486,8 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 # ##################################################################################################################### #
 
   params_process();
+
+//   var_dump($PARAMS);
 
   exit(0);
 ?>
