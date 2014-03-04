@@ -2,7 +2,7 @@
 #PADDING LINE...
 #JSN:xkaspa34
 
-# ##################################################################################################################### #
+# #################################################################################################################### #
 # File:          jsn.php
 # Version:       0.0.1.0
 # Start date:    23-02-2014
@@ -26,11 +26,11 @@
 # File encoding: en_US.utf8 (United States)
 #
 # {{{ }}} NOTE:  TODO
-# ##################################################################################################################### #
+# #################################################################################################################### #
 
-# ##################################################################################################################### #
-# ### CONSTANTS ####################################################################################################### #
-# ##################################################################################################################### #
+# #################################################################################################################### #
+# ### CONSTANTS ###################################################################################################### #
+# #################################################################################################################### #
 
 define("SCRIPT_NAME", $argv[0]);
 
@@ -42,12 +42,20 @@ define("ERROR_WRITE", 3);
 define("ERROR_FORMAT", 4);
 define("ERROR_XML_NAME", 50);
 define("ERROR_CHARS_SUBST", 51);
-define("ERROR_CLOSE", 100);
+define("WARNING", 100);
+define("ERROR_CLOSE", 101);
 
 
-# ##################################################################################################################### #
-# ### GLOBAL VARIABLES ################################################################################################ #
-# ##################################################################################################################### #
+# #################################################################################################################### #
+# ### GLOBAL VARIABLES ############################################################################################### #
+# #################################################################################################################### #
+
+# Global return value. In case of unrecoverable error the script ends,
+# in other cases it sets this variable. (e.g. for warnings)
+$RET_VAL = NO_ERROR;
+
+# Actual plunge for indentation purposes of XML output.
+$PLUNGE = 0;
 
 # Array which will hold values of processes parameters:
 $PARAMS["input_fname"] = NULL;              # --input
@@ -57,7 +65,7 @@ $PARAMS["ill_chars_substitute"] = NULL;     # -h
 $PARAMS["generate_header"] = NULL;          # -n
 
 $PARAMS["root_element"] = NULL;             # -r
-$PARAMS["root_element_attr"] = NULL;        # Storage in case -r also has an anttribute specified.
+$PARAMS["root_element_attr"] = NULL;        # Storage in case -r also has an attribute specified.
 
 $PARAMS["array_name"] = NULL;               # --array-name
 $PARAMS["array_name_attr"] = NULL;          # Storage in case --array-name has an attribute specified.
@@ -79,10 +87,12 @@ $PARAMS["padding"] = NULL;                  # --padding
 $PARAMS["flattening"] = NULL;               # --flattening
 $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
+$PARAMS["offset_size"] = NULL;              # --offset-size
 
-# ##################################################################################################################### #
-# ### FUNCTIONS ####################################################################################################### #
-# ##################################################################################################################### #
+
+# #################################################################################################################### #
+# ### FUNCTIONS ###################################################################################################### #
+# #################################################################################################################### #
   
   # TODO: Write function description.
   function display_help()
@@ -98,16 +108,37 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
   }}}
   
 
-# ##################################################################################################################### #
+# #################################################################################################################### #
+
+  # All script initialization (with additional testing if needed).
+  function script_init()
+  {{{
+    global $RET_VAL;
+
+    # Enabling all warnings for debugging purposes. TODO: CHANGE BEFORE SUBMITTING THE FINISHED SCRIPT.
+    ini_set('error_reporting', E_ALL);
+
+    # Setting UTF-8 as encoding for string & regex operations:
+    if (mb_internal_encoding("UTF-8") != true || mb_regex_encoding("UTF-8") != true) {
+      fwrite(STDERR, SCRIPT_NAME . ": Warning: Failed to set internal or regex encoding for multibyte characters,\n");
+      fwrite(STDERR, "\t\t\tthe output result might not be valid.\n");
+      $RET_VAL = WARNING;
+    }
+
+    return;
+  }}}
+
+
+# #################################################################################################################### #
   
-  # Wrapping function for opening input file. This function does not actually openes the file, it only test the file's
-  # existence & permissions due to read function used later, which openes and reads the file by itself. TODO.
+  # Wrapping function for opening input file. This function does not actually opens the file, it only test the file's
+  # existence & permissions due to read function used later, which opens and reads the file by itself.
   function open_input_file()
   {{{
     global $PARAMS;
 
     if ($PARAMS["input_fname"] == STDIN) {
-      $PARAMS["input_fname"] = "php://stdin";   # Assigning 'path' to STDIN for file_get_contents() function.
+      $PARAMS["input_fname"] = "php://stdin";   # Small hack - assigning 'path' to STDIN for file_get_contents().
       return;
     }
     
@@ -116,12 +147,11 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
       exit(ERROR_READ);
     }
 
-    #FIXME: Acquire a shared lock on the input file?
-    
     return;
   }}}
 
   
+  # Wrapping function for opening specified output file, if any.
   function open_output_file()
   {{{
     global $PARAMS;
@@ -130,26 +160,26 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
       return;                                   # Already opened stream, nothing to do.
     }
 
-    $file_ptr = @fopen($PARAMS["output_fname"], "w");
+    $file_ptr = @fopen($PARAMS["output_fname"], "w");   # The '@' suppresses the error/warning messages of PHP.
 
     if ($file_ptr == false) {
-      fwrite(STDERR, SCRIPT_NAME . ": Error: Specified output file can't be created/rewrited!\n");
+      fwrite(STDERR, SCRIPT_NAME . ": Error: Specified output file can't be created/rewritten!\n");
       exit(ERROR_WRITE);
     }
 
-    #FIXME: Acquire an exclusive lock on the output file?
-
-    $PARAMS["output_fname"] = $file_ptr;
+    $PARAMS["output_fname"] = $file_ptr;        # Backing up the file pointer.
 
     return;
   }}}
 
 
+  # Reads the whole content of the specified file into string, which it returns.
+  # It also work if input file is STDIN stream.
   function read_file_content()
   {{{
     global $PARAMS;
 
-    $string = @file_get_contents($PARAMS["input_fname"]);
+    $string = @file_get_contents($PARAMS["input_fname"]);   # The '@' suppresses error/warning messages of PHP.
 
     if ($string === false) {
       fwrite(STDERR, SCRIPT_NAME . ": Error: Could not read the content of the input file!\n");
@@ -160,26 +190,64 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
   }}}
 
 
+  # Callback function for sanity purposes only. In case of opening file with fopen(), appropriate fclose() equivalent
+  # would go here. Currently this functions does nothing. If needed, it should be registered with
+  # register_shutdown_function().
   function close_input_file()
   {{{
-    return;                     # file_get_contents() function does not need opened file descriptor, nothing to do.
+    return;                       # file_get_contents() function does not need opened file descriptor, nothing to do.
   }}}
 
-
+  
+  # Callback function for closing already opened file. This should be registered with register_shutdown_function().
   function close_output_file()
   {{{
-    global $PARAMS;
+    global $PARAMS, $RET_VAL;
 
     if ($PARAMS["output_fname"] != STDOUT && fclose($PARAMS["output_fname"] == false)) {
-      fwrite(STDERR, SCRIPT_NAME . ": Error: Failed to close outpuf file, result may not be valid!\n");
-      exit(ERROR_CLOSE);
+      fwrite(STDERR, SCRIPT_NAME . ": Error: Failed to close output file, result may not be valid!\n");
+      $RET_VAL = ERROR_CLOSE;     # This is the callback function upon exit. We can't call exit before complete cleanup.
     }
     
     return;
   }}}
 
 
-# ##################################################################################################################### #
+# #################################################################################################################### #
+  
+  # Generates string of white spaces of specified length. This string is then used by get_offset_string() function.
+  function offset_string_init()
+  {{{
+    global $PARAMS;
+
+    $string = "";
+
+    for ($i = 0; $i < intval($PARAMS["offset_size"]); $i++) {
+      $string .= " ";
+    }
+
+    define("OFFSET_STRING", $string);     # Making generated string a constant so it can't be accidentally changed.
+
+    return;
+  }}}
+
+  
+  # Generates appropriate string of white spaces based upon already created OFFSET_STRING. It uses the global variable
+  # $PLUNGE, which specifies actual number of offsets. Returns string which can be concatenated with XML element, thus
+  # generating complete line with appropriate XML element offset.
+  function get_offset_string()
+  {{{
+    global $PLUNGE;
+
+    $string = "";
+
+    for ($i = 0; $i < $PLUNGE; $i++) {
+      $string .= OFFSET_STRING;
+    }
+    
+    return $string;
+  }}}
+
 
   # Function for testing if given string has a proper XML name for an element. Returns TRUE if the string is valid, FALSE
   # otherwise. It also accepts the name and the attribute, which can be used in element name.
@@ -204,7 +272,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
   }}}
 
 
-# ##################################################################################################################### #
+# #################################################################################################################### #
 
   # Function for testing & processing parameters given to the script. Exits with error message in case of wrong
   # parameter / wrongly used parameter. It also initializes the default values for unused parameters. No return value.
@@ -232,7 +300,6 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
       switch($param) {
 
         case "--help" :
-     // case "-help" :
           if ($argc > 2) {
             fwrite(STDERR, SCRIPT_NAME . ": Error: Invalid parameters combination!\n");
             exit(ERROR_PARAMS);
@@ -248,7 +315,6 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
         # ##############
         case "--input" :
-     // case "-input" :
           if ($PARAMS["input_fname"] == NULL) {
             if ($value == NULL) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: '--input' used, but no file name was specified!\n");
@@ -267,10 +333,9 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
         # ###############
         case "--output" :
-     // case "-output" :
           if ($PARAMS["output_fname"] == NULL) {
             if ($value == NULL) {
-              fwrite(STDERR, SCRIPT_NAME . ": Error: '--output' used, but no file name was specfified!\n");
+              fwrite(STDERR, SCRIPT_NAME . ": Error: '--output' used, but no file name was specified!\n");
               exit(ERROR_PARAMS);
             }
 
@@ -286,7 +351,6 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
         # ###################
         case "--array-name" :
-     // case "-array-name" :
           if ($PARAMS["array_name"] == NULL) {
             if ($value == NULL) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: '--array-name' used, but no array name was specified!\n");
@@ -310,7 +374,6 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
         # ##################
         case "--item-name" :
-     // case "-item-size :
           if ($PARAMS["item_name"] == NULL) {
             if ($value == NULL) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: '--item-name' used, but no item name was specified!\n");
@@ -334,7 +397,6 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
         # ##############
         case "--start" :
-     // case "-start" :
           if ($PARAMS["counter_init"] == NULL) {
             if ($value == NULL) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: '--start' used, but no start value was specified!\n");
@@ -343,12 +405,12 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
             
             if (is_numeric($value) == false) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: '--start' value is not a number!\n");
-              exit(ERROR_PARAMS);               # FIXME: IS this correct return value?
+              exit(ERROR_PARAMS);               # FIXME: Is this correct return value?
             }
 
             if (intval($value) != floatval($value)) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: '--start' value is not an integer!\n");
-              exit(ERROR_PARAMS);               # FIXME: IS this correct return value?
+              exit(ERROR_PARAMS);               # FIXME: Is this correct return value?
             }
 
             if ($value < 0) {
@@ -405,17 +467,49 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
           }
 
           break;
+
         
+        # ####################
+        case "--offset-size" :
+          if ($PARAMS["offset_size"] == NULL) {
+            if ($value == NULL) {
+              fwrite(STDERR, SCRIPT_NAME . ": Error: '--offset-size' used, but no offset value was specified!\n");
+              exit(ERROR_PARAMS);
+            }
+
+            if (is_numeric($value) == false) {
+              fwrite(STDERR, SCRIPT_NAME . ": Error: '--offset-size' value is not a number!\n");
+              exit(ERROR_PARAMS);               # FIXME: Is this correct return value?
+            }
+
+            if (intval($value) != floatval($value)) {
+              fwrite(STDERR, SCRIPT_NAME . ": Error: '--offset-size' value is not an integer!\n");
+              exit(ERROR_PARAMS);               # FIXME: Is this correct return value?
+            }
+
+            if ($value < 0) {
+              fwrite(STDERR, SCRIPT_NAME . ": Error: '--offset-size' value is not a positive number!\n");
+              exit(ERROR_PARAMS);               # FIXME: Is this correct return value?
+            }
+
+            $PARAMS["offset_size"] = $value;
+          }
+          else {
+            fwrite(STDERR, SCRIPT_NAME . ": Error: Offset size already specified!\n");
+            exit(ERROR_PARAMS);
+          }
+
+          break;
+
 
         # ###################
         case "--array-size" :
-     // case "-array-size" :
         case "-a" :
           if ($PARAMS["array_size"] == NULL) {
             $PARAMS["array_size"] = true;
           }
           else {
-            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplicit '-a' or '--array-size' parameters used!\n");
+            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplication of '-a' or '--array-size' parameters!\n");
             exit(ERROR_PARAMS);
           }
 
@@ -424,18 +518,17 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
         # ####################
         case "--index-items" :
-     // case "-index-items" :
         case "-t" :
           if ($PARAMS["index_items"] == NULL) {
             $PARAMS["index_items"] = true;
           }
           else {
-            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplicit '-t' or '--index-items' parameters used!\n");
+            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplication of '-t' or '--index-items' parameters!\n");
             exit(ERROR_PARAMS);
           }
 
           break;
-        
+
 
         # #########
         case "-n" :
@@ -443,7 +536,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
             $PARAMS["generate_header"] = true;
           }
           else {
-            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplicit '-n' parameter used!\n");
+            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplication of '-n' parameter!\n");
             exit(ERROR_PARAMS);
           }
 
@@ -456,7 +549,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
             $PARAMS["string_transform"] = true;
           }
           else {
-            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplicit '-s' parameter used!\n");
+            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplication of '-s' parameter!\n");
             exit(ERROR_PARAMS);
           }
 
@@ -469,7 +562,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
             $PARAMS["number_transform"] = true;
           }
           else {
-            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplicit '-i' parameter used!\n");
+            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplication of '-i' parameter!\n");
             exit(ERROR_PARAMS);
           }
 
@@ -482,7 +575,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
             $PARAMS["literals_transform"] = true;
           }
           else {
-            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplicit '-l' parameter used!\n");
+            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplication of '-l' parameter!\n");
             exit(ERROR_PARAMS);
           }
           
@@ -495,7 +588,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
             $PARAMS["chars_translate"] = true;
           }
           else {
-            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplicit '-c' parameter used!\n");
+            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplication of '-c' parameter!\n");
             exit(ERROR_PARAMS);
           }
 
@@ -508,7 +601,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
             $PARAMS["padding"] = true;
           }
           else {
-            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplicit '--padding' parameter used!\n");
+            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplication of '--padding' parameter!\n");
             exit(ERROR_PARAMS);
           }
 
@@ -521,7 +614,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
             $PARAMS["flattening"] = true;
           }
           else {
-            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplicit '--flattening' parameter used!\n");
+            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplication of '--flattening' parameter!\n");
             exit(ERROR_PARAMS);
           }
 
@@ -534,7 +627,7 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
             $PARAMS["error_recovery"] = true;
           }
           else {
-            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplicit '--error-recovery' parameter used!\n");
+            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplication of '--error-recovery' parameter!\n");
             exit(ERROR_PARAMS);
           }
 
@@ -576,6 +669,10 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
       $PARAMS["counter_init"] = 1;
     }
 
+    if ($PARAMS["offset_size"] == NULL) {
+      $PARAMS["offset_size"] = 4;
+    }
+
     if ($PARAMS["array_name"] == NULL) {
       $PARAMS["array_name"] = "array";
     }
@@ -607,30 +704,29 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
   }}}
 
 
-# ##################################################################################################################### #
-# ### START OF SCRIPT EXECUTION ####################################################################################### #
-# ##################################################################################################################### #
+# #################################################################################################################### #
+# ### START OF SCRIPT EXECUTION ###################################################################################### #
+# #################################################################################################################### #
   
-  # Enabling all warnings for debugging purposes. TODO: REMOVE BEFORE SUBMITTING THE FINISHED SCRIPT.
-  ini_set('error_reporting', E_ALL);
-
-  # Enabling interoperability for files with endings other than \n:  
-  ini_set("auto_detect_line_endings", true);
-
+  script_init();
   params_process();
 
-  var_dump($PARAMS);
+  var_dump($PARAMS);      # TODO: Remove before submitting.
 
   open_input_file();
-  open_output_file();
+  register_shutdown_function("close_input_file");
 
+  open_output_file();
   register_shutdown_function("close_output_file");
 
   $str = read_file_content();
 
+  offset_string_init();
+
+  # TODO: Remove before submitting:
   echo "\n\n";
   echo $str;
   echo "\n\n";
 
-  exit(0);
+  exit($RET_VAL);
 ?>
