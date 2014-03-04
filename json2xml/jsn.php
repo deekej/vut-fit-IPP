@@ -42,6 +42,7 @@ define("ERROR_WRITE", 3);
 define("ERROR_FORMAT", 4);
 define("ERROR_XML_NAME", 50);
 define("ERROR_CHARS_SUBST", 51);
+define("ERROR_CLOSE", 100);
 
 
 # ##################################################################################################################### #
@@ -89,12 +90,97 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
     # TODO: Write text of help.
   }}}
   
+
   # TODO: Write function description.
   function display_usage()
   {{{
     # TODO: Write text of usage.
   }}}
   
+
+# ##################################################################################################################### #
+  
+  # Wrapping function for opening input file. This function does not actually openes the file, it only test the file's
+  # existence & permissions due to read function used later, which openes and reads the file by itself. TODO.
+  function open_input_file()
+  {{{
+    global $PARAMS;
+
+    if ($PARAMS["input_fname"] == STDIN) {
+      $PARAMS["input_fname"] = "php://stdin";   # Assigning 'path' to STDIN for file_get_contents() function.
+      return;
+    }
+    
+    if (is_readable($PARAMS["input_fname"]) == false) {
+      fwrite(STDERR, SCRIPT_NAME . ": Error: Specified input file doesn't exist or is not readable!\n");
+      exit(ERROR_READ);
+    }
+
+    #FIXME: Acquire a shared lock on the input file?
+    
+    return;
+  }}}
+
+  
+  function open_output_file()
+  {{{
+    global $PARAMS;
+
+    if ($PARAMS["output_fname"] == STDOUT) {
+      return;                                   # Already opened stream, nothing to do.
+    }
+
+    $file_ptr = @fopen($PARAMS["output_fname"], "w");
+
+    if ($file_ptr == false) {
+      fwrite(STDERR, SCRIPT_NAME . ": Error: Specified output file can't be created/rewrited!\n");
+      exit(ERROR_WRITE);
+    }
+
+    #FIXME: Acquire an exclusive lock on the output file?
+
+    $PARAMS["output_fname"] = $file_ptr;
+
+    return;
+  }}}
+
+
+  function read_file_content()
+  {{{
+    global $PARAMS;
+
+    $string = @file_get_contents($PARAMS["input_fname"]);
+
+    if ($string === false) {
+      fwrite(STDERR, SCRIPT_NAME . ": Error: Could not read the content of the input file!\n");
+      exit(ERROR_READ);
+    }
+
+    return $string;
+  }}}
+
+
+  function close_input_file()
+  {{{
+    return;                     # file_get_contents() function does not need opened file descriptor, nothing to do.
+  }}}
+
+
+  function close_output_file()
+  {{{
+    global $PARAMS;
+
+    if ($PARAMS["output_fname"] != STDOUT && fclose($PARAMS["output_fname"] == false)) {
+      fwrite(STDERR, SCRIPT_NAME . ": Error: Failed to close outpuf file, result may not be valid!\n");
+      exit(ERROR_CLOSE);
+    }
+    
+    return;
+  }}}
+
+
+# ##################################################################################################################### #
+
   # Function for testing if given string has a proper XML name for an element. Returns TRUE if the string is valid, FALSE
   # otherwise. It also accepts the name and the attribute, which can be used in element name.
   function xml_validate_name($string)
@@ -117,6 +203,8 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
     return;
   }}}
 
+
+# ##################################################################################################################### #
 
   # Function for testing & processing parameters given to the script. Exits with error message in case of wrong
   # parameter / wrongly used parameter. It also initializes the default values for unused parameters. No return value.
@@ -522,10 +610,27 @@ $PARAMS["error_recovery"] = NULL;           # --error-recovery
 # ##################################################################################################################### #
 # ### START OF SCRIPT EXECUTION ####################################################################################### #
 # ##################################################################################################################### #
+  
+  # Enabling all warnings for debugging purposes. TODO: REMOVE BEFORE SUBMITTING THE FINISHED SCRIPT.
+  ini_set('error_reporting', E_ALL);
+
+  # Enabling interoperability for files with endings other than \n:  
+  ini_set("auto_detect_line_endings", true);
 
   params_process();
 
   var_dump($PARAMS);
+
+  open_input_file();
+  open_output_file();
+
+  register_shutdown_function("close_output_file");
+
+  $str = read_file_content();
+
+  echo "\n\n";
+  echo $str;
+  echo "\n\n";
 
   exit(0);
 ?>
