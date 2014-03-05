@@ -119,8 +119,8 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
     ini_set('error_reporting', E_ALL);
 
     # Setting UTF-8 as encoding for string & regex operations:
-    if (mb_internal_encoding("UTF-8") != true || mb_regex_encoding("UTF-8") != true) {
-      fwrite(STDERR, SCRIPT_NAME . ": Warning: Failed to set internal or regex encoding for multibyte characters,\n");
+    if (mb_internal_encoding("UTF-8") == false) {
+      fwrite(STDERR, SCRIPT_NAME . ": Warning: Failed to set internal encoding for multibyte characters,\n");
       fwrite(STDERR, "\t\t\tthe output result might not be valid.\n");
       $RET_VAL = WARNING;
     }
@@ -253,8 +253,8 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
   # otherwise. It also accepts the name and the attribute, which can be used in element name.
   function xml_validate_name($string)
   {{{
-    return (preg_match('/^(?!XML|\p{P}|\p{N})[\p{L}\p{N}\.-_]+[[:space:]]*$/i', $string) === 1 ||
-            preg_match('/^(?!XML|\p{P}|\p{N})[\p{L}\p{N}\.-_]+[[:space:]]+[\p{L}\p{N}\.-_]+="[^"]*"[[:space:]]*$/i', $string) === 1);
+    return (preg_match('/^(?!XML|\p{P}|\p{N})[\p{L}\p{N}\.-_]+[[:space:]]*$/ui', $string) === 1 ||
+            preg_match('/^(?!XML|\p{P}|\p{N})[\p{L}\p{N}\.-_]+[[:space:]]+[\p{L}\p{N}\.-_]+="[^"]*"[[:space:]]*$/ui', $string) === 1);
   }}}
 
 
@@ -263,7 +263,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
   {{{
     global $PARAMS;
 
-    if (preg_match('/[\p{L}\p{N}\.-_]+="[^"]*"[[:space:]]*$/i', $PARAMS[$param_name], $match, PREG_OFFSET_CAPTURE) === 1) {
+    if (preg_match('/[\p{L}\p{N}\.-_]+="[^"]*"[[:space:]]*$/ui', $PARAMS[$param_name], $match, PREG_OFFSET_CAPTURE) === 1) {
       $PARAMS[$param_name . "_attr"] = chop($match[0][0]);
       $PARAMS[$param_name] = chop(substr($PARAMS[$param_name], 0, $match[0][1]));
     }
@@ -286,14 +286,14 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
     for ($index = 1; $index < $argc; $index++) {
 
       # Trying to find '=' character in actual parameter, if any:
-      $param = strstr($argv[$index], "=", true);
+      $param = mb_strstr($argv[$index], "=", true);
 
       if ($param == false) {
-        $param = $argv[$index];                                     # No '=' found, reassigning value.
+        $param = $argv[$index];                                       # No '=' found, reassigning value.
         $value = NULL;
       }
       else {
-        $value = substr(strstr($argv[$index], "=", false), 1);      # '=' found, getting the value (without '=' char).
+        $value = mb_substr(mb_strstr($argv[$index], "=", false), 1);  # '=' found, getting the value (without '=' char).
       }
       
       # Testing the parameter in appropriate match & setting the global variable if required:
@@ -720,6 +720,12 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
   register_shutdown_function("close_output_file");
 
   $str = read_file_content();
+
+  # Checking the encoding:
+  if (mb_check_encoding($str, "UTF-8") == false) {
+    fwrite(STDERR, SCRIPT_NAME . ": Error: The input file has not 'UTF-8' encoding!\n");
+    exit(ERROR_FORMAT);
+  }
 
   offset_string_init();
 
