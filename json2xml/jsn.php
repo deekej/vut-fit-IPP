@@ -4,9 +4,9 @@
 
 # #################################################################################################################### #
 # File:          jsn.php
-# Version:       0.0.1.0
+# Version:       0.9.0.0
 # Start date:    23-02-2014
-# Last update:   25-02-2014
+# Last update:   07-03-2014
 #
 # Course:        IPP (summer semester, 2014)
 # Project:       Script for converting of JSON format to XML format, written in PHP scripting language (version 5).
@@ -32,9 +32,12 @@
 # ### CONSTANTS ###################################################################################################### #
 # #################################################################################################################### #
 
+# Turn on debugging messages?
+define("DEBUG", true);
+
 define("SCRIPT_NAME", $argv[0]);
 define("XML_HEADER", "<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-#<? #NOTE: <-This is simple workaround for VIM syntax highlight, because I have broken it.
+#<? # Small hack to restore proper VIM colorization, which I broke with hacking VIM configuration files.
 
 # ERROR codes:
 define("NO_ERROR", 0);
@@ -45,10 +48,16 @@ define("ERROR_OPEN_WRITE", 3);
 define("ERROR_FORMAT", 4);
 define("ERROR_XML_NAME", 50);
 define("ERROR_CHARS_SUBST", 51);
-define("ERROR_CLOSE", 101);
+define("ERROR_INTERNAL", 101);
 define("ERROR_WRITE_OUTPUT", 102);
+define("ERROR_CLOSE", 109);
 define("ERROR_JSON_UNKNOWN", 110);
 define("ERROR_JSON_DEPTH", 111);
+define("ERROR_JSON2XML", 120);
+
+# Taken from official XML 1.0 Standard/Document (Fifth Edition) @ http://www.w3.org/TR/REC-xml/#sec-common-syn
+define("XML_NameStartChar", '_:A-Z_a-z\\xC0-\\xD6\\xD8-\\xF6\\xF8-\\x{2FF}\\x{370}-\\x{37D}\\x{37F}-\\x{1FFF}\\x{200C}-\\x{200D}\\x{2070}-\\x{218F}\\x{2C00}-\\x{2FEF}\\x{3001}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFFD}\\x{10000}-\\x{EFFFF}');
+define("XML_NameChar", XML_NameStartChar . '-.\\-0-9\\xB7\\x{0300}-\\x{036F}\\x{203F}-\\x{2040}');
 
 
 # #################################################################################################################### #
@@ -70,18 +79,15 @@ $PARAMS["ill_chars_substitute"] = NULL;     # -h
 $PARAMS["generate_header"] = NULL;          # -n
 
 $PARAMS["root_element"] = NULL;             # -r
-$PARAMS["root_element_attr"] = NULL;        # Storage in case -r also has an attribute specified.
 
 $PARAMS["array_name"] = NULL;               # --array-name
-$PARAMS["array_name_attr"] = NULL;          # Storage in case --array-name has an attribute specified.
 
 $PARAMS["item_name"] = NULL;                # --item-name
-$PARAMS["item_name_attr"] = NULL;           # Storage in case --item-name has an attribute specified.
 
 $PARAMS["string_transform"] = NULL;         # -s
 $PARAMS["number_transform"] = NULL;         # -i
 $PARAMS["literals_transform"] = NULL;       # -l
-$PARAMS["chars_translate"] = NULL;          # -c
+$PARAMS["problem_chars_translate"] = NULL;  # -c
 
 $PARAMS["array_size"] = NULL;               # -a | --array-size
 $PARAMS["index_items"] = NULL;              # -t | --index-items
@@ -89,8 +95,8 @@ $PARAMS["index_items"] = NULL;              # -t | --index-items
 $PARAMS["counter_init"] = NULL;             # --start
 
 $PARAMS["padding"] = NULL;                  # --padding
-$PARAMS["flattening"] = NULL;               # --flattening
-$PARAMS["error_recovery"] = NULL;           # --error-recovery
+# $PARAMS["flattening"] = NULL;               # --flattening
+# $PARAMS["error_recovery"] = NULL;           # --error-recovery
 
 $PARAMS["offset_size"] = NULL;              # --offset-size
 
@@ -102,14 +108,16 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
   # TODO: Write function description.
   function display_help()
   {{{
-    # TODO: Write text of help.
+    # TODO: Update the text of help.
+    echo "This is help!\n";
   }}}
   
 
   # TODO: Write function description.
   function display_usage()
   {{{
-    # TODO: Write text of usage.
+    # TODO: Update the text of usage.
+    echo "This is usage!\n";
   }}}
   
 
@@ -118,12 +126,19 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
   {{{
     global $RET_VAL;
 
-    # Enabling all warnings for debugging purposes. TODO: CHANGE BEFORE SUBMITTING THE FINISHED SCRIPT.
-    ini_set('error_reporting', E_ALL);
+    if (DEBUG == true) {
+      # Enabling all warnings for debugging purposes.
+      ini_set("display_errors", "On");
+      ini_set("error_reporting", E_ALL);
+    }
+    else {
+      ini_set("display_errors", "On");
+      ini_set("error_reporting", E_ALL);
+    }
 
     # Setting UTF-8 as encoding for string & regex operations:
-    if (mb_internal_encoding("UTF-8") == false) {
-      fwrite(STDERR, SCRIPT_NAME . ": Warning: Failed to set internal encoding for multibyte characters,\n");
+    if (mb_internal_encoding("UTF-8") == false || mb_regex_encoding("UTF-8") == false) {
+      fwrite(STDERR, SCRIPT_NAME . ": Warning: Failed to set internal or regular expression encoding for multibyte characters,\n");
       fwrite(STDERR, "\t\t\tthe output result might not be valid.\n");
       $RET_VAL = WARNING;
     }
@@ -216,7 +231,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
             }
             
             if (xml_validate_name($value) == false) {
-              fwrite(STDERR, SCRIPT_NAME . ": Error: Invalid array element name or attribute!\n");
+              fwrite(STDERR, SCRIPT_NAME . ": Error: Invalid XML element name for '--array-name' parameter!\n");
               exit(ERROR_XML_NAME);
             }
 
@@ -239,7 +254,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
             }
 
             if (xml_validate_name($value) == false) {
-              fwrite(STDERR, SCRIPT_NAME . ": Error: Invalid item element name or attribute!\n");
+              fwrite(STDERR, SCRIPT_NAME . ": Error: Invalid XML element name for '--item-name' parameter!\n");
               exit(ERROR_XML_NAME);
             }
 
@@ -263,17 +278,17 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
             
             if (is_numeric($value) == false) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: '--start' value is not a number!\n");
-              exit(ERROR_PARAMS);               # FIXME: Is this correct return value?
+              exit(ERROR_PARAMS);
             }
 
             if (intval($value) != floatval($value)) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: '--start' value is not an integer!\n");
-              exit(ERROR_PARAMS);               # FIXME: Is this correct return value?
+              exit(ERROR_PARAMS);
             }
 
             if ($value < 0) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: '--start' value is not a positive number!\n");
-              exit(ERROR_PARAMS);               # FIXME: Is this correct return value?
+              exit(ERROR_PARAMS);
             }
 
             $PARAMS["counter_init"] = intval($value);
@@ -313,7 +328,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
             }
             
             if (xml_validate_name($value) === false) {
-              fwrite(STDERR, SCRIPT_NAME . ": Error: Invalid root element name or attribute!\n");
+              fwrite(STDERR, SCRIPT_NAME . ": Error: Invalid XML element name for 'root element'!\n");
               exit(ERROR_XML_NAME);
             }
             
@@ -337,17 +352,17 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
 
             if (is_numeric($value) == false) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: '--offset-size' value is not a number!\n");
-              exit(ERROR_PARAMS);               # FIXME: Is this correct return value?
+              exit(ERROR_PARAMS);
             }
 
             if (intval($value) != floatval($value)) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: '--offset-size' value is not an integer!\n");
-              exit(ERROR_PARAMS);               # FIXME: Is this correct return value?
+              exit(ERROR_PARAMS);
             }
 
             if ($value < 0) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: '--offset-size' value is not a positive number!\n");
-              exit(ERROR_PARAMS);               # FIXME: Is this correct return value?
+              exit(ERROR_PARAMS);
             }
 
             $PARAMS["offset_size"] = intval($value);
@@ -442,8 +457,8 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
 
         # #########
         case "-c" :
-          if ($PARAMS["chars_translate"] === NULL) {
-            $PARAMS["chars_translate"] = true;
+          if ($PARAMS["problem_chars_translate"] === NULL) {
+            $PARAMS["problem_chars_translate"] = true;
           }
           else {
             fwrite(STDERR, SCRIPT_NAME . ": Error: Duplication of '-c' parameter!\n");
@@ -467,29 +482,29 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
 
 
         # ###################
-        case "--flattening" :
-          if ($PARAMS["flattening"] === NULL) {
-            $PARAMS["flattening"] = true;
-          }
-          else {
-            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplication of '--flattening' parameter!\n");
-            exit(ERROR_PARAMS);
-          }
-
-          break;
+        # case "--flattening" :
+        #   if ($PARAMS["flattening"] === NULL) {
+        #     $PARAMS["flattening"] = true;
+        #   }
+        #   else {
+        #     fwrite(STDERR, SCRIPT_NAME . ": Error: Duplication of '--flattening' parameter!\n");
+        #     exit(ERROR_PARAMS);
+        #   }
+        #
+        #  break;
 
 
         # #######################
-        case "--error-recovery" :
-          if ($PARAMS["error_recovery"] === NULL) {
-            $PARAMS["error_recovery"] = true;
-          }
-          else {
-            fwrite(STDERR, SCRIPT_NAME . ": Error: Duplication of '--error-recovery' parameter!\n");
-            exit(ERROR_PARAMS);
-          }
-
-          break;
+        # case "--error-recovery" :
+        #   if ($PARAMS["error_recovery"] === NULL) {
+        #     $PARAMS["error_recovery"] = true;
+        #   }
+        #   else {
+        #     fwrite(STDERR, SCRIPT_NAME . ": Error: Duplication of '--error-recovery' parameter!\n");
+        #     exit(ERROR_PARAMS);
+        #   }
+        #
+        #   break;
 
 
         # #######
@@ -509,13 +524,24 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
       exit(ERROR_PARAMS);
     }
 
+    # Additional testing of '--padding' parameter:
     if ($PARAMS["padding"] == true && $PARAMS["index_items"] === NULL) {
       fwrite(STDERR, SCRIPT_NAME . ": Error: '--padding' used, but '-t' or '--index-items' is missing!\n");
       exit(ERROR_PARAMS);
     }
 
 
-    # Setting default values if needed, or doing additional processing:
+    # Setting default values with additional testing:
+    if ($PARAMS["array_name"] === NULL) {
+      $PARAMS["array_name"] = "array";
+    }
+
+    if ($PARAMS["item_name"] === NULL) {
+      $PARAMS["item_name"] = "item";
+    }
+    
+
+    # Setting default values if needed:
     if ($PARAMS["input_file"] === NULL) {
       $PARAMS["input_file"] = STDIN;
     }
@@ -540,32 +566,13 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
       $PARAMS["generate_header"] = true;
     }
 
-    if ($PARAMS["array_name"] === NULL) {
-      $PARAMS["array_name"] = "array";
-    }
-    else {
-      xml_name_attr_split("array_name");                # Attribute separation if needed.
-    }
-
-    if ($PARAMS["item_name"] === NULL) {
-      $PARAMS["item_name"] = "item";
-    }
-    else {
-      xml_name_attr_split("item_name");                 # Attribute separation if needed.
-    }
-
-    if ($PARAMS["root_element"] !== NULL) {
-      xml_name_attr_split("root_element");              # Attribute separation if needed.
-    }
-
 
     # Setting other non-initialized values to false:
-    foreach($PARAMS as $key => $value) {
+    foreach ($PARAMS as $key => $value) {
       if ($value === NULL) {
         $PARAMS[$key] = false;
       }
     }
-
 
     return;
   }}}
@@ -617,8 +624,8 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
   }}}
 
 
-  # Callback function for sanity purposes only. In case of opening file with fopen(), appropriate fclose() equivalent
-  # would go here. Currently this functions does nothing. If needed, it should be registered with
+  # Callback function, currently for sanity purposes only. In case of opening file with fopen(), appropriate fclose()
+  # equivalent would go here. Currently this functions does nothing. If needed, it should be registered with
   # register_shutdown_function().
   function close_input_file()
   {{{
@@ -631,7 +638,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
   {{{
     global $PARAMS, $RET_VAL;
 
-    if ($PARAMS["output_file"] != STDOUT && fclose($PARAMS["output_file"] == false)) {
+    if ($PARAMS["output_file"] != STDOUT && fclose($PARAMS["output_file"]) == false) {
       fwrite(STDERR, SCRIPT_NAME . ": Error: Failed to close output file, result may not be valid!\n");
       $RET_VAL = ERROR_CLOSE;     # This is the callback function upon exit. We can't call exit before complete cleanup.
     }
@@ -660,6 +667,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
     return $string;
   }}}
 
+
   # Wrapping function for writing content to output. It adds the trailing '\n' character & tests if the output was
   # successful. It ends the script upon error.
   function output_write($content)
@@ -679,7 +687,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
 # ~~~ STRING AUXILIARY FUNCTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # #################################################################################################################### #
   
-  # Generates string of white spaces of specified length. This string is then used by get_offset_string() function.
+  # Generates string of white spaces of specified length. This string is then used by offset_string() function.
   function offset_string_init()
   {{{
     global $PARAMS;
@@ -699,7 +707,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
   # Generates appropriate string of white spaces based upon already created OFFSET_STRING. It uses the global variable
   # $PLUNGE, which specifies actual number of offsets. Returns string which can be concatenated with XML element, thus
   # generating complete line with appropriate XML element offset.
-  function get_offset_string()
+  function offset_string()
   {{{
     global $PLUNGE;
 
@@ -712,7 +720,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
     return $string;
   }}}
 
-
+  
 # #################################################################################################################### #
 # ~~~ JSON FORMAT AUXILIARY FUNCTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # #################################################################################################################### #
@@ -722,7 +730,6 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
   function json_classify($item)
   {{{
     if (is_scalar($item)) {
-
       if (is_string($item)) {
         return "JSON_STRING";
       }
@@ -746,7 +753,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
         
         # We're assuming that json_decode() function will always
         # return array with string or integer types as keys.
-        foreach($item as $key => $value) {
+        foreach ($item as $key => $value) {
           if (is_string($key)) {
             return "JSON_OBJECT";
           }
@@ -754,7 +761,8 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
             return "JSON_ARRAY";
           }
         }
-
+          
+        return "JSON_EMPTY";          # The given item is array, but it's an empty array of size 0.
       }
       else if (is_null($item)) {
         return "JSON_NULL";
@@ -771,25 +779,424 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
 # ~~~ XML FORMAT AUXILIARY FUNCTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # #################################################################################################################### #
 
-  # Function for testing if given string has a proper XML name for an element. Returns TRUE if the string is valid, FALSE
-  # otherwise. It also accepts the name and the attribute, which can be used in element name.
+  # Function tests if given string is a valid XML element name. Returns TRUE if the string is valid, FALSE otherwise.
   function xml_validate_name($string)
   {{{
-    return (preg_match('/^(?!XML|\p{P}|\p{N})[\p{L}\p{N}\.-_]+[[:space:]]*$/ui', $string) === 1 ||
-            preg_match('/^(?!XML|\p{P}|\p{N})[\p{L}\p{N}\.-_]+[[:space:]]+[\p{L}\p{N}\.-_]+="[^"]*"[[:space:]]*$/ui', $string) === 1);
+    # NOTE: Previous & not completely valid solution:
+    # return (preg_match('/^(?!XML|\p{P}|\p{N})[_\p{L}\p{N}\.-]+[[:space:]]*$/ui', $string) === 1 ||
+    #         preg_match('/^(?!XML|\p{P}|\p{N})[_\p{L}\p{N}\.-]+[[:space:]]+[\p{L}\p{N}\.-_]+="[^"]*"[[:space:]]*$/ui', $string) === 1);
+    
+    try {
+      new DOMElement($string);
+      return true;
+    }
+    
+    # In case the name is invalid, exception is raised and caught here:
+    catch (DOMException $exception) {
+      return false;
+    }
+    
   }}}
 
 
-  # Function for splitting value of parameter of given name into XML name & XML attribute in case an attribute is found.
-  function xml_name_attr_split($param_name)
+# #################################################################################################################### #
+
+  # Function which will find illegal characters for XML element name and replace them with specified replacement. If the
+  # string after replacement is invalid, it exits with error. Otherwise the 'repaired' string is returned.
+  function illegal_chars_subst($string)
+  {{{
+    global $PARAMS;
+    
+    # Replace starting 'XML' text in any letter case or character, which is not XML_NameStartChar:
+    $string = preg_replace('/^([Xx][Mm][Ll]|[^' . XML_NameStartChar . '])/ux', $PARAMS["ill_chars_substitute"], $string);
+
+    # Replace invalid characters from rest of the string:
+    $string = preg_replace('/[^' . XML_NameChar . ']/ux', $PARAMS["ill_chars_substitute"], $string);
+
+    if (xml_validate_name($string) == false) {
+      fwrite(STDERR, SCRIPT_NAME . ": Error: Invalid XML name after substitution of invalid characters!\n");
+      exit(ERROR_CHARS_SUBST);
+    }
+    
+    return $string;
+  }}}
+
+  
+  # Function which finds the problematic XML characters in given string & replaces them with appropriate
+  # & metacharacters, if requested by '-c' script parameter. Returns given or modified string.
+  function problematic_chars_subst($string)
   {{{
     global $PARAMS;
 
-    if (preg_match('/[\p{L}\p{N}\.-_]+="[^"]*"[[:space:]]*$/ui', $PARAMS[$param_name], $match, PREG_OFFSET_CAPTURE) === 1) {
-      $PARAMS[$param_name . "_attr"] = chop($match[0][0]);
-      $PARAMS[$param_name] = chop(substr($PARAMS[$param_name], 0, $match[0][1]));
+    if ($PARAMS["problem_chars_translate"] == false) {
+      return $string;
     }
 
+    $string = mb_ereg_replace("&", "&amp;", $string);
+    $string = mb_ereg_replace("<", "&lt;", $string);
+    $string = mb_ereg_replace(">", "&gt;", $string);
+    $string = mb_ereg_replace("\"", "&quot;", $string);
+    $string = mb_ereg_replace("'", "&apos;", $string);
+
+    return $string;
+  }}}
+
+
+  # Prints XML string in requested format.
+  function xml_print_string($name, $string)
+  {{{
+    global $PARAMS;
+
+    $string = problematic_chars_subst($string);
+
+    if ($PARAMS["string_transform"] == true) {
+      output_write(offset_string() . "<" . $name . ">" . $string . "</" . $name . ">");
+    }
+    else {
+      output_write(offset_string() . "<" . $name . " value=\"" . $string . "\" />");
+    }
+
+    return;
+  }}}
+
+  
+  # Prints XML number in requested format.
+  function xml_print_number($name, $value)
+  {{{
+    global $PARAMS;
+    
+    if ($PARAMS["number_transform"] == true) {
+      output_write(offset_string() . "<" . $name . ">" . $value . "</" . $name . ">");
+    }
+    else {
+      output_write(offset_string() . "<" . $name . " value=\"" . $value . "\" />");
+    }
+
+    return;
+  }}}
+
+  
+  # Prints XML boolean value in requested format.
+  function xml_print_boolean($name, $value)
+  {{{
+    global $PARAMS, $PLUNGE;
+
+    if ($PARAMS["literals_transform"] == true) {
+      output_write(offset_string() . "<" . $name . ">");
+      
+      $PLUNGE++;                # Adjusting indentation.
+      output_write(offset_string() . "<" . var_export($value, true) . " />");
+      $PLUNGE--;                # Restoring indentation.
+
+      output_write(offset_string() . "</" . $name . ">");
+    }
+    else {
+      output_write(offset_string() . "<" . $name . " value=\"" . var_export($value, true) . "\" />");
+    }
+
+    return;
+  }}}
+
+
+  # Prints XML null value in requested format.
+  function xml_print_null($name)
+  {{{
+    global $PARAMS, $PLUNGE;
+
+    if ($PARAMS["literals_transform"] == true) {
+      output_write(offset_string() . "<" . $name . ">");
+
+      $PLUNGE++;                  # Adjusting indentation.
+      output_write(offset_string() . "<null />");
+      $PLUNGE--;                  # Restoring indentation.
+
+      output_write(offset_string() . "</" . $name . ">");
+    }
+    else {
+      output_write(offset_string() . "<" . $name . " value=\"null\" />");
+    }
+
+    return;
+  }}}
+  
+
+  # Prints empty XML element with given name.
+  function xml_print_name_single($name)
+  {{{
+    output_write(offset_string() . "<" . $name . " />");
+
+    return;
+  }}}
+
+  # Prints starting or ending XML element with given name.
+  function xml_print_name($name, $start)
+  {{{
+    if ($start == true) {
+      output_write(offset_string() . "<" . $name . ">");
+    }
+    else {
+      output_write(offset_string() . "</" . $name . ">");
+    }
+
+    return;
+  }}}
+
+
+# #################################################################################################################### #
+
+  # Function, which generates index values for array items. It returns string to be used, depending on specified script
+  # parameters.
+  function generate_index($index, $array_size)
+  {{{
+    global $PARAMS;
+
+    if ($PARAMS["index_items"] == false) {
+      return "";                        # Nothing to do, return empty string - it will not change the array item format.
+    }
+
+    # Getting new index value, depending on initial counter value:
+    $index_new = $index + $PARAMS["counter_init"];
+    
+    # Filling used counters with zeroes, if requested:;
+    if ($PARAMS["padding"] == true) {
+      $max_num_width = mb_strwidth(strval($array_size + $PARAMS["counter_init"]));    # Getting maximum width of number.
+      $format = "%0" . $max_num_width . "u";                                          # Generating format string.
+      $index_new = sprintf($format, $index_new);                                      # Updating the index string.
+    }
+    
+    return " index=\"" . $index_new . "\"";
+  }}}
+
+
+  # Prints XML array item containing string. Uses the name specified during script invocation, if needed.
+  function xml_print_item_string($index, $string)
+  {{{
+    global $PARAMS;
+
+    $string = problematic_chars_subst($string);
+
+    if ($PARAMS["string_transform"] == true) {
+      output_write(offset_string() . "<" . $PARAMS["item_name"] . $index . ">" . $string . "</" . $PARAMS["item_name"] . ">");
+    }
+    else {
+      output_write(offset_string() . "<" . $PARAMS["item_name"] . $index . " value=\"" . $string . "\" />");
+    }
+
+    return;
+  }}}
+
+
+  # Prints XML array item containing number.
+  function xml_print_item_number($index, $value)
+  {{{
+    global $PARAMS;
+    
+    if ($PARAMS["number_transform"] == true) {
+      output_write(offset_string() . "<" . $PARAMS["item_name"] . $index . ">" . $value . "</" . $PARAMS["item_name"] . ">");
+    }
+    else {
+      output_write(offset_string() . "<" . $PARAMS["item_name"] . $index . " value=\"" . $value . "\" />");
+    }
+
+    return;
+  }}}
+
+
+  # Prints XML array item containing boolean value.
+  function xml_print_item_boolean($index, $value)
+  {{{
+    global $PARAMS, $PLUNGE;
+
+    if ($PARAMS["literals_transform"] == true) {
+      output_write(offset_string() . "<" . $PARAMS["item_name"] . $index . ">");
+
+      $PLUNGE++;                  # Adjusting indentation.
+      output_write(offset_string() . "<" . var_export($value, true) . " />");
+      $PLUNGE--;                  # Restoring indentation.
+
+      output_write(offset_string() . "</" . $PARAMS["item_name"] . ">");
+    }
+    else {
+      output_write(offset_string() . "<" . $PARAMS["item_name"] . $index . " value=\"" . var_export($value, true) . "\" />");
+    }
+
+    return;
+  }}}
+
+  
+  # Prints XML array item containing null value.
+  function xml_print_item_null($index)
+  {{{
+    global $PARAMS, $PLUNGE;
+
+    if ($PARAMS["literals_transform"] == true) {
+      output_write(offset_string() . "<" . $PARAMS["item_name"] . $index . ">");
+
+      $PLUNGE++;                  # Adjusting indentation.
+      output_write(offset_string() . "<null />");
+      $PLUNGE--;                  # Restoring indentation.
+
+      output_write(offset_string() . "</" . $PARAMS["item_name"] . ">");
+    }
+    else {
+      output_write(offset_string() . "<" . $PARAMS["item_name"] . $index . " value=\"null\" />");
+    }
+
+    return;
+  }}}
+
+  
+  # Prints XML array item's name. The item contain nothing.
+  function xml_print_item_single($index)
+  {{{
+    output_write(offset_string() . "<" . $PARAMS["item_name"] . $index . " />");
+
+    return;
+  }}}
+
+  
+  # Prints XML array start or end item element name.
+  function xml_print_item($index, $start)
+  {{{
+    global $PARAMS;
+
+    if ($start == true) {
+      output_write(offset_string() . "<" . $PARAMS["item_name"] . $index . ">");
+    }
+    else {
+      output_write(offset_string() . "</" . $PARAMS["item_name"] . ">");
+    }
+
+    return;
+  }}}
+  
+
+# #################################################################################################################### #
+
+  # Main function for processing given array (generated by json_decode() function) into appropriate XML format.
+  # It uses recursive algorithm for printing any plunged values.
+  function json2xml($array)
+  {{{
+    global $PLUNGE, $PARAMS;
+
+    $ret_val = json_classify($array);
+    
+    # JSON object was given to function:
+    if ($ret_val == "JSON_OBJECT") {
+
+      # Iterating through the whole object (it's still an array):
+      foreach ($array as $key => $value) {
+        $name = illegal_chars_subst($key);        # Substituting illegal characters.
+
+        switch (json_classify($value)) {
+          case "JSON_STRING" :
+            xml_print_string($name, $value);
+            break;
+
+          case "JSON_FLOAT" :
+            $value = intval(floor($value));       # Rounding the float value downwards, printing it below.
+
+          case "JSON_INTEGER" :
+            xml_print_number($name, $value);
+            break;
+
+          case "JSON_BOOLEAN" :
+            xml_print_boolean($name, $value);
+            break;
+
+          case "JSON_NULL" :
+            xml_print_null($name);
+            break;
+
+          case "JSON_EMPTY" :
+            xml_print_name_single($name);         # Printing only item name.
+            break;
+
+          case "JSON_OBJECT" :
+          case "JSON_ARRAY" :
+            xml_print_name($name, true);          # Printing starting element name.
+
+            $PLUNGE++;                            # Adjusting indentation.
+            json2xml($value);                     # Recursive call to this function.
+            $PLUNGE--;                            # Restoring indentation.
+
+            xml_print_name($name, false);         # Printing ending element name.
+            break;
+
+          default :
+            fwrite(STDERR, SCRIPT_NAME . ": Error: Unhandled return value of json_classify() in json2xml() function!\n");
+            exit(ERROR_JSON2XML);
+            break;
+        }
+      }
+    }
+    # JSON array was given to the function - we use different functions for output:
+    else if ($ret_val == "JSON_ARRAY") {
+      $array_size = count($array);
+
+      if ($PARAMS["array_size"] == true) {
+        output_write(offset_string() . "<" . $PARAMS["array_name"] . " size=\"" . $array_size . "\">");
+      }
+      else {
+        output_write(offset_string() . "<" . $PARAMS["array_name"] . ">");
+      }
+      
+      $PLUNGE++;                                        # Adjusting indentation.
+
+      foreach ($array as $key => $value) {
+        $index = generate_index($key, $array_size);
+
+        switch (json_classify($value)) {
+          case "JSON_STRING" :
+            xml_print_item_string($index, $value);
+            break;
+
+          case "JSON_FLOAT" :
+            $value = intval(floor($value));             # Rounding the float value downwards, printing it below.
+
+          case "JSON_INTEGER" :
+            xml_print_item_number($index, $value);
+            break;
+
+          case "JSON_BOOLEAN" :
+            xml_print_item_boolean($index, $value);
+            break;
+
+          case "JSON_NULL" :
+            xml_print_item_null($index);
+            break;
+
+          case "JSON_EMPTY" :
+            xml_print_item_single($index);              # Printing only item name.
+            break;
+
+          case "JSON_OBJECT" :
+          case "JSON_ARRAY" :
+            xml_print_item($index, true);               # Printing starting element name.
+
+            $PLUNGE++;                                  # Adjusting indentation.
+            json2xml($value);                           # Recursive call to this function.
+            $PLUNGE--;                                  # Restoring indentation.
+            
+            xml_print_item($index, false);              # Printing ending element name.
+            break;
+
+          default :
+            fwrite(STDERR, SCRIPT_NAME . ": Error: Unhandled return value of json_classify() in json2xml() function!\n");
+            exit(ERROR_JSON2XML);
+            break;
+        }
+      }
+      
+      $PLUNGE--;                                        # Restoring indentation.
+      output_write(offset_string() . "</" . $PARAMS["array_name"] . ">");
+    }
+    # Getting here indicates wrong use of this function or some serious error:
+    else {
+      fwrite(STDERR, SCRIPT_NAME . ": Internal Error: Improper use of json2xml() function!\n");
+      exit(ERROR_INTERNAL);
+    }
+    
     return;
   }}}
 
@@ -801,16 +1208,15 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
   script_init();
   params_process();
 
-  var_dump($PARAMS);
-
+  # ################################################################################################################## #
 
   open_input_file();
-  register_shutdown_function("close_input_file");
+  register_shutdown_function("close_input_file");       # Registering function to be called at any exit.
 
   open_output_file();
-  register_shutdown_function("close_output_file");
+  register_shutdown_function("close_output_file");      # Registering function to be called at any exit.
 
-  $string = read_file_content();
+  $string = read_file_content();                        # Reading the whole file content into a string.
 
   # Checking the encoding:
   if (mb_check_encoding($string, "UTF-8") == false) {
@@ -818,9 +1224,11 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
     exit(ERROR_FORMAT);
   }
 
+  # ################################################################################################################## #
 
-  $json_array = json_decode($string, true);
-
+  $json_array = json_decode($string, true);             # Decoding file content string into an array.
+  
+  # Any error during decoding?
   switch (json_last_error()) {
     case JSON_ERROR_NONE :
       # No ERROR, proceed.
@@ -846,12 +1254,38 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
       fwrite(STDERR, SCRIPT_NAME . ": Error: Unknown error of json_decode() function!\n");
       exit(ERROR_JSON_UNKNOWN);
   }
+  
+  # ################################################################################################################## #
 
   if ($PARAMS["generate_header"] == true) {
     output_write(XML_HEADER);
   }
 
-  offset_string_init();
+  # If the size of properly generated array is 0, then the input JSON file had only one empty object: {}
+  if (count($json_array) == 0) {
+    if ($PARAMS["root_element"] != false) {
+      output_write("<" . $PARAMS["root_element"] . " />");  # Single root element.
+    }
+
+    exit($RET_VAL);                                         # Nothing more to do.
+  }
+
+  if ($PARAMS["root_element"] != false) {
+    output_write("<" . $PARAMS["root_element"] . ">");
+    $PLUNGE++;
+  }
+
+  # ################################################################################################################## #
+
+  offset_string_init();         # Initialization of offset string used for indentation.
+  json2xml($json_array);        # Format converting.
+
+  # ################################################################################################################## #
+
+  if ($PARAMS["root_element"] != false) {
+    output_write("</" . $PARAMS["root_element"] . ">");
+  }
 
   exit($RET_VAL);
 ?>
+
