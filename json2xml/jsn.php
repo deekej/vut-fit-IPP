@@ -4,9 +4,9 @@
 
 # #################################################################################################################### #
 # File:          jsn.php
-# Version:       0.9.0.0
+# Version:       1.0.0.0
 # Start date:    23-02-2014
-# Last update:   07-03-2014
+# Last update:   08-03-2014
 #
 # Course:        IPP (summer semester, 2014)
 # Project:       Script for converting of JSON format to XML format, written in PHP scripting language (version 5).
@@ -19,13 +19,14 @@
 #
 # E-mail:        xkaspa34@stud.fit.vutbr.cz
 #
-# Description:   TODO
+# Description:   Script for converting JSON format (RFC 4627) into XML (1.0) format.
 #
 # More info @:   https://www.fit.vutbr.cz/study/courses/index.php?id=9384 
 #
 # File encoding: en_US.utf8 (United States)
 #
-# {{{ }}} NOTE:  TODO
+# {{{ }}} NOTE:  This scripts uses marks for manual folding in VIM. If you dislike it or your IDE uses it's own folding
+#                method, you can remove them by running this command in bash: sed -ie 's/{{{/{/; s/}}}/}/' this_filename
 # #################################################################################################################### #
 
 # #################################################################################################################### #
@@ -37,7 +38,7 @@ define("DEBUG", true);
 
 define("SCRIPT_NAME", $argv[0]);
 define("XML_HEADER", "<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-#<? # Small hack to restore proper VIM colorization, which I broke with hacking VIM configuration files.
+#<? # <-- Small hack to restore proper VIM colorization, which I broke with hacking VIM configuration files.
 
 # ERROR codes:
 define("NO_ERROR", 0);
@@ -104,20 +105,71 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
 # #################################################################################################################### #
 # ~~~ SCRIPT AUXILIARY FUNCTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # #################################################################################################################### #
-
-  # TODO: Write function description.
+  
+  # Displays the help page of the script.
   function display_help()
   {{{
-    # TODO: Update the text of help.
-    echo "This is help!\n";
-  }}}
-  
-
-  # TODO: Write function description.
-  function display_usage()
-  {{{
-    # TODO: Update the text of usage.
-    echo "This is usage!\n";
+    # TERM. WIDTH: |                                                                               |
+    fwrite(STDOUT, "Usage: php " . SCRIPT_NAME . " [OPTIONS]\n" .
+                   "-------------------------------------------------------------------------------\n" .
+                   "      Script for converting JSON format (RFC 4627) into XML (1.0) format.\n" .
+                   "-------------------------------------------------------------------------------\n" .
+                   "OPTIONS:    (long version:)\n" .
+                   "              --help\n" .
+                   "                  Displays this help page.\n\n" .
+                   "              --input=filename\n" .
+                   "                  Input file in JSON format. STDIN is used if not specified.\n\n" .
+                   "              --output=filename\n" .
+                   "                  Output file in XML format. STDOUT is used if not specified.\n\n" .
+                   "  -h=subst\n" .
+                   "                  'subst' - string to be used for substitution of every\n" .
+                   "                  character that is not allowed by XML standard.\n\n" .
+                   "  -n\n" .
+                   "                  Do not generate the XML header:\n" .
+                   "                  <?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n" .
+                   "  -r=root-element\n" .
+                   "                  Name of XML root element to be used. If not specified,\n" .
+                   "                  none will be used.\n\n" .
+                   "              --array-name=array-element\n" .
+                   "                  'array-element' - the name to be used for JSON arrays.\n" .
+                   "                  (Default value is 'array'.)\n\n" .
+                   "              --item-name=item-element\n" .
+                   "                  'item-name' - the name to be used for items of JSON arrays.\n\n" .
+                   "  -s\n" .
+                   "                  JSON strings will be transformed into text elements.\n" .
+                   "                  By default the elements attributes are used.\n\n" .
+                   "  -i\n" .
+                   "                  JSON numbers will be transformed into text elements.\n" .
+                   "                  By default the elements attributes are used.\n\n" .
+                   "  -l\n" .
+                   "                  Values of literals 'true', 'false' and 'null' will be\n" .
+                   "                  transformed to <true />, <false />, <null /> respectively.\n\n" .
+                   "  -c\n" .
+                   "                  Activates transformation of XML problematic characters.\n" .
+                   "                  < > & \" ' characters will be transformed into: \$lt; \$gt;\n" .
+                   "                  \$amp; \$quot; \$apos; respectively.\n\n" .
+                   "  -a          --array-size\n" .
+                   "                  Adding 'size' attribute to every array from JSON format,\n" .
+                   "                  specifying the size of the array.\n\n" .
+                   "  -t          --index-items\n" .
+                   "                  Adding 'index' attribute to every array's item from JSON\n" .
+                   "                  format, specifying the actual index of array's item.\n\n" .
+                   "              --start=N\n" .
+                   "                  Allows to change starting value for --index-items parameter.\n" .
+                   "                  The default value is N = 1. --index-items has to be used.\n\n" .
+                   "              --padding\n" .
+                   "                  Inputs zeroes into index values from left side, so all the\n" .
+                   "                  index values has same minimal width.\n\n".
+                   "This is the result of the 1st school project @ BUT FIT, IPP course, 2014.\n\n" .
+                   "Just like the GNU software, this script is provided 'as it is', without any\n" .
+                   "warranty or guarantees. You're free to use it and distribute it under GPLv2.\n\n" .
+                   "Author:       Dee'Kej\n" .
+                   "Contact:      deekej@linuxmail.org\n" .
+                   "Websites:     http://www.fit.vutbr.cz/\n" .
+                   "              https://github.com/deekej\n" .
+                   "              https://bitbucket.org/deekej\n");
+    
+    return;
   }}}
   
 
@@ -178,7 +230,6 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
             exit(ERROR_PARAMS);
           }
           else {
-            display_usage();
             display_help();
             exit(NO_ERROR);
           }
@@ -684,7 +735,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
 
 
 # #################################################################################################################### #
-# ~~~ STRING AUXILIARY FUNCTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+# ~~~ INDENT AUXILIARY FUNCTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 # #################################################################################################################### #
   
   # Generates string of white spaces of specified length. This string is then used by offset_string() function.
@@ -1072,6 +1123,8 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
   
 
 # #################################################################################################################### #
+# ~~~ PRIMARY FUNCTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+# #################################################################################################################### #
 
   # Main function for processing given array (generated by json_decode() function) into appropriate XML format.
   # It uses recursive algorithm for printing any plunged values.
@@ -1202,7 +1255,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
 
 
 # #################################################################################################################### #
-# ### START OF SCRIPT EXECUTION ###################################################################################### #
+# ### START OF THE SCRIPT EXECUTION ################################################################################## #
 # #################################################################################################################### #
   
   script_init();
