@@ -4,9 +4,9 @@
 
 # #################################################################################################################### #
 # File:          jsn.php
-# Version:       1.0.0.0
+# Version:       1.0.0.1
 # Start date:    23-02-2014
-# Last update:   08-03-2014
+# Last update:   09-03-2014
 #
 # Course:        IPP (summer semester, 2014)
 # Project:       Script for converting of JSON format to XML format, written in PHP scripting language (version 5).
@@ -160,6 +160,9 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
                    "              --padding\n" .
                    "                  Inputs zeroes into index values from left side, so all the\n" .
                    "                  index values has same minimal width.\n\n".
+                   "              --offset-size\n".
+                   "                  Specifies the number of white spaces used for indentation.\n".
+                   "                  By default the indentation is done by 4 space characters.\n\n".
                    "This is the result of the 1st school project @ BUT FIT, IPP course, 2014.\n\n" .
                    "Just like the GNU software, this script is provided 'as it is', without any\n" .
                    "warranty or guarantees. You're free to use it and distribute it under GPLv2.\n\n" .
@@ -561,7 +564,6 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
         # #######
         default :
           fwrite(STDERR, SCRIPT_NAME . ": Error: Unknown parameter '" . $param . "' used!\n");
-          display_usage();
           exit(ERROR_PARAMS);
       }
 
