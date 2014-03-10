@@ -572,7 +572,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
     # ###################################################################################################################
 
     # Additional testing of '--start' parameter:
-    if ($PARAMS["counter_init"] == true && $PARAMS["index_items"] === NULL) {
+    if ($PARAMS["counter_init"] !== NULL && $PARAMS["index_items"] === NULL) {
       fwrite(STDERR, SCRIPT_NAME . ": Error: '--start' used, but '-t' or '--index-items' is missing!\n");
       exit(ERROR_PARAMS);
     }
