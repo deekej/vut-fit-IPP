@@ -666,7 +666,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
 
     $file_ptr = @fopen($PARAMS["output_file"], "w");   # The '@' suppresses the error/warning messages of PHP.
 
-    if ($file_ptr == false) {
+    if ($file_ptr === false) {
       fwrite(STDERR, SCRIPT_NAME . ": Error: Specified output file can't be created/rewritten!\n");
       exit(ERROR_OPEN_WRITE);
     }
@@ -1272,6 +1272,12 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
   register_shutdown_function("close_output_file");      # Registering function to be called at any exit.
 
   $string = read_file_content();                        # Reading the whole file content into a string.
+  
+  # This test is necessary, because json_decode() returns empty array also for empty file.
+  if (strlen($string) == 0) {
+    fwrite(STDERR, SCRIPT_NAME . ": Error: The empty input is not a valid JSON format!\n");
+    exit(ERROR_FORMAT);
+  }
 
   # Checking the encoding:
   if (mb_check_encoding($string, "UTF-8") == false) {
@@ -1316,7 +1322,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
     output_write(XML_HEADER);
   }
 
-  # If the size of properly generated array is 0, then the input JSON file had only one empty object: {}
+  # If the size of properly generated array is 0, then the input JSON file had only one empty object: {} or []
   if (count($json_array) == 0) {
     if ($PARAMS["root_element"] != false) {
       output_write("<" . $PARAMS["root_element"] . " />");  # Single root element.
