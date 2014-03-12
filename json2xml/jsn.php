@@ -1102,6 +1102,8 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
   # Prints XML array item's name. The item contain nothing.
   function xml_print_item_single($index)
   {{{
+    global $PARAMS;
+
     output_write(offset_string() . "<" . $PARAMS["item_name"] . $index . " />");
 
     return;
