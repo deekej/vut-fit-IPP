@@ -160,7 +160,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
                    "              --padding\n" .
                    "                  Inputs zeroes into index values from left side, so all the\n" .
                    "                  index values has same minimal width.\n\n".
-                   "              --offset-size\n".
+                   "              --offset-size=N\n".
                    "                  Specifies the number of white spaces used for indentation.\n".
                    "                  By default the indentation is done by 4 space characters.\n\n".
                    "This is the result of the 1st school project @ BUT FIT, IPP course, 2014.\n\n" .
