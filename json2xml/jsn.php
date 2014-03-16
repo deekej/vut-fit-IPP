@@ -1331,7 +1331,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
       break;
 
     case JSON_ERROR_DEPTH :
-      fwrite(STDERR, SCRIPT_NAME . ": Error: The maximum stack depth for JSON format decoding has been exceede!\n");
+      fwrite(STDERR, SCRIPT_NAME . ": Error: The maximum stack depth for JSON format decoding has been exceeded!\n");
       exit(ERROR_JSON_DEPTH);
 
     case JSON_ERROR_STATE_MISMATCH :
@@ -1358,7 +1358,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
   }
 
   # If the size of properly generated object is 0, then the input JSON file had only one empty object: {} or []
-  if (count($json_object) == 0) {
+  if (is_object($json_object) && count((array) $json_object) == 0) {
     if ($PARAMS["root_element"] != false) {
       output_write("<" . $PARAMS["root_element"] . " />");  # Single root element.
     }
