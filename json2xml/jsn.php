@@ -358,7 +358,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
         # #########
         case "-h" :
           if ($PARAMS["ill_chars_substitute"] === NULL) {
-            if ($value == NULL) {
+            if ($value === NULL) {
               fwrite(STDERR, SCRIPT_NAME . ": Error: '-h' used, but no substitution string was specified!\n");
               exit(ERROR_PARAMS);
             }
