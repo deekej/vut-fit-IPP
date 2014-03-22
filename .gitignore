@@ -1,2 +1,8 @@
 # Ignoring the testsuite of 1st project:
 json2xml/testsuite
+
+# Ignoring python's byte-code:
+xml2ddl/__pycache__
+
+# Ignoring python's documentation:
+xml2ddl/python-doc
