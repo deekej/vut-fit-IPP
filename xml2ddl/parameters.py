@@ -5,7 +5,7 @@
 # ============================================================================= #
 #
 # File (module): params.py
-# Version:       1.0.0.
+# Version:       1.0.0.1
 # Start date:    19-03-2014
 # Last update:   22-03-2014
 #
@@ -43,12 +43,13 @@ accessed independently via Parameters.result public attribute.
 # ========
 import argparse
 import sys
+import errors
 
 # ==========
 # Constants:
 # ==========
 
-ERROR_PARAMS = 1
+EXIT_CODES = errors.EXIT_CODES
 
 # ===============
 # Public Classes:
@@ -170,7 +171,8 @@ class _ArgumentParser(argparse.ArgumentParser):
     def error(self, message):
         """Exit status has been changed to '1', otherwise same as super class."""
         self.print_usage(sys.stderr)
-        self.exit(ERROR_PARAMS, ('%s: ERROR: %s\n') % (self.prog, message))
+        self.exit(EXIT_CODES["error_parameters"],
+                  ('%s: ERROR: %s\n') % (self.prog, message))
 
 
 class _HelpAction(argparse._HelpAction):
