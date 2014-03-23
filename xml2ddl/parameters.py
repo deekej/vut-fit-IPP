@@ -190,7 +190,7 @@ class _HelpAction(argparse._HelpAction):
 # ===================
 # Internal functions:
 # ===================
-def main():
+def _main():
     from pprint import pprint
     settings = Parameters().process()
     print("----------------------------------------------------")
@@ -200,6 +200,6 @@ def main():
     return 0
 
 if __name__ == '__main__':
-    status = main()
+    status = _main()
     sys.exit(status)
 

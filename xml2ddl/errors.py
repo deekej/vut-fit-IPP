@@ -54,9 +54,9 @@ EXIT_CODES = {
 # ===================
 # Internal functions:
 # ===================
-def main():
+def _main():
     pass
 
 if __name__ == '__main__':
-    main()
+    _main()
 
