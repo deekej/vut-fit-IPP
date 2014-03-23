@@ -71,7 +71,9 @@ class InputOutput(object):
         settings to be an instance of the Parameters class (parameters.py
         module). It also registers closing of the opened files at any exit.
         """
-
+            
+        _xml_output = settings.g
+        _output_header = settings.header
         atexit.register(self._close)    # Making sure the files will be closed.
 
         # Trying to open specified files in text mode and with UTF-8 encoding:
