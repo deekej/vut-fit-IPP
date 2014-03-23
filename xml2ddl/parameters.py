@@ -160,6 +160,22 @@ Websites:   https://www.fit.vutbr.cz/
     def process(self):
         """Runs the parameters processing itself."""
         self.result = self._parser.parse_args()
+        
+        # Acting same as Unix conventions require, the '-' is std{in,out}:
+        if self.result.input == "-":
+            self.result.input = sys.stdin
+
+        if self.result.output == "-":
+            self.result.output = sys.stdout
+
+        if self.result.valid == "-":
+            self.result.valid = sys.stdin
+        
+        # Two different files can't be read from stdin simultaneously:
+        if self.result.valid == sys.stdin and self.result.input == sys.stdin:
+            message = "both --input and --isvalid arguments can't use stdin"
+            self._parser.error(message)
+
         return self.result
 
 
