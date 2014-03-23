@@ -43,13 +43,7 @@ accessed independently via Parameters.result public attribute.
 # ========
 import argparse
 import sys
-import errors
-
-# ==========
-# Constants:
-# ==========
-
-EXIT_CODES = errors.EXIT_CODES
+from errors import EXIT_CODES
 
 # ===============
 # Public Classes:
