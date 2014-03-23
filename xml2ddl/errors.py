@@ -1,4 +1,4 @@
-# PADDING LINE
+#!/usr/bin/env python3.2
 # -*- coding: utf-8 -*-
 #XTD:xkaspa34
 

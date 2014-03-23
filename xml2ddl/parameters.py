@@ -197,7 +197,7 @@ def main():
     print("The dictionary of Parameters class with the results:")
     print("----------------------------------------------------")
     pprint(vars(settings))
-    return 0;
+    return 0
 
 if __name__ == '__main__':
     status = main()
