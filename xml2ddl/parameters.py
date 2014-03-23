@@ -122,8 +122,8 @@ Websites:   https://www.fit.vutbr.cz/
         )
         self._parser.add_argument(
             '--header',
-            metavar='string',
-            help='string that will be used as a header for output file'
+            metavar='text',
+            help='header included at top of the output'
         )
         self._parser.add_argument(
             '-a',
