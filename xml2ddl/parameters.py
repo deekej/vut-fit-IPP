@@ -121,6 +121,7 @@ Websites:   https://www.fit.vutbr.cz/
         )
         self._parser.add_argument(
             '--isvalid',
+            dest='valid',
             metavar='filename',
             help='file for examination with the script input'
         )
