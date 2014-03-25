@@ -43,12 +43,14 @@ only exit codes are specified for all modules.
 
 EXIT_CODES = {
     "no_error": 0,
+    "warning": 100,
     "error_parameters": 1,
     "error_open_read": 2,
     "error_open_write": 3,
     "error_wrong_format": 4,
     "error_names_conflict": 90,
     "error_different_files": 91,
+    "error_failed_output": 101,
 }
 
 # ===================

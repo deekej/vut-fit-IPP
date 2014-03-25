@@ -141,6 +141,27 @@ class InputOutput(object):
             self._error(EXIT_CODES["error_wrong_format"])
         return self._input_tree
 
+    def write(self, content):
+        """\
+        Polymorphic output method, which prints the processed content in format
+        specified by script parameter - either as SQL or XML representation.
+        """
+        try:
+            if self._xml_output:
+                # We're expecting an instance of ElementTree class here:
+                content.write(
+                    file=self._fd_output,
+                    encoding='utf-8',
+                    xml_declaration=False,      # NOTE: Might change.
+                    method='xml'                # NOTE: Might change.
+                )
+            else:
+                # We're expecting an instance of TablesBuilder class here:
+                for (table_name, table) in content.items():
+                    self._fd_output.write(str(table) + "\n")
+        except IOError:
+            self._error(EXIT_CODES["error_failed_output"])
+
     def _close(self):
         """Closes all non-std{in,out} files opened before."""
         if self._fd_input != sys.stdin:
