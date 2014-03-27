@@ -77,11 +77,15 @@ Websites:   https://www.fit.vutbr.cz/
         Tests if the given string argument represents a natural number
         (number >= 0).
         """
-        value = int(string)
-        if value >= 0:
-            return value
-        else:
-            message = "%r is not a natural number" % string
+        try:
+            value = int(string)
+            if value >= 0:
+                return value
+            else:
+                message = "%r is not a natural number" % string
+                raise argparse.ArgumentTypeError(message)
+        except ValueError:
+            message = "%r is not an integer number" % string
             raise argparse.ArgumentTypeError(message)
 
     def __init__(self):
