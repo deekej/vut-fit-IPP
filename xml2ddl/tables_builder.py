@@ -148,6 +148,7 @@ class TablesBuilder(object):
 
     def rename_table(self, table_name, table_name_new):
         self.tables[table_name]._edit_table_name(table_name_new)
+        self.tables[table_name_new] = self.tables.pop(table_name)
 
     def remove_table(self, table_name):
         del self.tables[table_name]
