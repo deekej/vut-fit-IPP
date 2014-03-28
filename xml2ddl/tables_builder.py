@@ -141,7 +141,11 @@ class TablesBuilder(object):
         return self.tables[table_name]
 
     def get_table(self, table_name):
-        return self.tables[table_name]
+        table = self.tables.get(table_name)
+        if not table:
+            table = Table(table_name)
+            self.tables[table_name] = table
+        return table
 
     def items(self):
         return self.tables.items()
@@ -199,11 +203,15 @@ def _main():
         sys.stdout.write(str(table) + "\n")
 
     database.rename_table("database_table3", "renamed_table")
+
     database.remove_table("database_table2")
     database.remove_table("database_table1")
 
     for (table_name, table) in database.items():
         sys.stdout.write(str(table) + "\n")
+    sys.stdout.write(str(database.tables["renamed_table"]) + "\n")
+    sys.stdout.write(str(database.get_table("renamed_table")) + "\n")
+    sys.stdout.write(str(database.get_table("missing_table")) + "\n")
 
     return 0
 
