@@ -130,13 +130,18 @@ class Table(object):
 
 class TablesBuilder(object):
     """\
-    Docstring.
+    Wrapping class for storing all Table() instances of one "database". The
+    created tables are stored inside an dictionary, which can be accessed via
+    .tables attribute.
     """
-
     def __init__(self):
         self.tables = dict()
     
     def create_table(self, table_name):
+        """\
+        Creates table of given name. Raises a KeyError in case the table already
+        exists.
+        """
         if table_name in self.tables:
             raise KeyError
         else:
@@ -144,22 +149,38 @@ class TablesBuilder(object):
             return self.tables[table_name]
 
     def get_table(self, table_name):
+        """\
+        This method acts in same way as get() method of dictionary - returns the
+        table of given name from dictionary or creates one, if it doesn't
+        exists.
+        """
         if table_name not in self.tables:
             self.tables[table_name] = Table(table_name)
         return self.tables[table_name]
 
     def items(self):
+        """\
+        Wrapping method for returning content of items() method of dictionary.
+        """
         return self.tables.items()
 
     def rename_table(self, table_name, table_name_new):
+        """\
+        Renames the given table to new name and the key in dictionary also.
+        """
         self.tables[table_name]._edit_table_name(table_name_new)
         self.tables[table_name_new] = self.tables.pop(table_name)
 
     def remove_table(self, table_name):
+        """Removes table of given name completely."""
         del self.tables[table_name]
 
     def write(self, file, encoding='us-ascii', xml_declaration=None,
               method='xml'):
+        """\
+        Polymorphic method as ElementTree.write() method. Prints the content of
+        tables in dictionary and separates them with empty line.
+        """
         for (table_name, table) in self.tables.items():
             file.write(str(table) + "\n")
         
