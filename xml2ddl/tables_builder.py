@@ -137,15 +137,16 @@ class TablesBuilder(object):
         self.tables = dict()
     
     def create_table(self, table_name):
-        self.tables[table_name] = Table(table_name)
-        return self.tables[table_name]
+        if table_name in self.tables:
+            raise KeyError
+        else:
+            self.tables[table_name] = Table(table_name)
+            return self.tables[table_name]
 
     def get_table(self, table_name):
-        table = self.tables.get(table_name)
-        if not table:
-            table = Table(table_name)
-            self.tables[table_name] = table
-        return table
+        if table_name not in self.tables:
+            self.tables[table_name] = Table(table_name)
+        return self.tables[table_name]
 
     def items(self):
         return self.tables.items()
@@ -156,6 +157,11 @@ class TablesBuilder(object):
 
     def remove_table(self, table_name):
         del self.tables[table_name]
+
+    def write(self, file, encoding='us-ascii', xml_declaration=None,
+              method='xml'):
+        for (table_name, table) in self.tables.items():
+            file.write(str(table) + "\n")
         
 
 # ===================
@@ -213,6 +219,15 @@ def _main():
     sys.stdout.write(str(database.get_table("renamed_table")) + "\n")
     sys.stdout.write(str(database.get_table("missing_table")) + "\n")
 
+    print("\n------------------------\n")
+
+    # Trying the same (polymorphic) call as for ElementTree.write() method:
+    database.write(
+        file=sys.stdout,
+        encoding='utf-8',
+        xml_declaration=False,
+        method='xml',
+    )
     return 0
 
 if __name__ == '__main__':

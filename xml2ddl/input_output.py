@@ -54,16 +54,15 @@ from errors import EXIT_CODES
 class InputOutput(object):
     """Interface for Input/Output operations."""
 
-    # Backup of file descriptors.
+    # Initial values of file descriptors
     _fd_input = sys.stdin
     _fd_valid = None
     _fd_output = sys.stdout
 
-    # Backup of ElementTree instances from parsed XML files.
+    # Initial values of parsed XML trees.
     _input_tree = None
     _valid_tree = None
-    # NOTE: _output_tree will be probably used later.
-    # _output_tree = None
+    # _output_tree = None # NOTE: _output_tree will be probably used later.
 
     def __init__(self, settings):
         """\
@@ -143,22 +142,24 @@ class InputOutput(object):
 
     def write(self, content):
         """\
-        Polymorphic output method, which prints the processed content in format
-        specified by script parameter - either as SQL or XML representation.
+        Prints the output of given content by calling its polymorphic write
+        method. It can add a header output in case it was required.
         """
         try:
             if self._xml_output:
-                # We're expecting an instance of ElementTree class here:
-                content.write(
-                    file=self._fd_output,
-                    encoding='utf-8',
-                    xml_declaration=False,      # NOTE: Might change.
-                    method='xml'                # NOTE: Might change.
-                )
+                # Adding header as a comment into ElementTree object, which will
+                # be printed below:
+                pass                        # TODO: Adding XML comment later.
             else:
-                # We're expecting an instance of TablesBuilder class here:
-                for (table_name, table) in content.items():
-                    self._fd_output.write(str(table) + "\n")
+                # Printing header in required format.
+                self._fd_output.write("--%s\n\n" % self._output_header)
+
+            content.write(
+                file=self._fd_output,
+                encoding='utf-8',
+                xml_declaration=False,      # NOTE: Might change.
+                method='xml',               # NOTE: Might change.
+            )
         except IOError:
             self._error(EXIT_CODES["error_failed_output"])
 
@@ -207,6 +208,10 @@ def _main():
     settings = Parameters().process()
     io = InputOutput(settings)
     tree = io.read_tree()
+
+    # Dumping the whole tree:
+    XML.dump(tree)
+    print("\n----------------------\n")
     
     # Displaying root and some following elements:
     pprint(vars(tree))
