@@ -112,33 +112,22 @@ class InputOutput(object):
             except IOError:
                 self._error(EXIT_CODES["error_open_write"])
 
-    def read_tree(self):
+    def read_trees(self):
         """\
-        Returns the ElementTree instance containing parsed XML input file. It
-        parses the file in case it has not been parsed yet.
+        Returns 2 ElementTree instances containing parsed XML input file and
+        validation file. It parses the files in case it has not been parsed yet.
         """
         if self._input_tree:
-            return self._input_tree
+            return self._input_tree, self._valid_tree
 
         try:
             self._input_tree = XML.parse(self._fd_input)
+
+            if self._fd_valid:
+                self._valid_tree = XML.parse(self._fd_valid)
         except (ValueError, XML.ParseError):
             self._error(EXIT_CODES["error_wrong_format"])
-        return self._input_tree
-
-    def read_check_tree(self):
-        """\
-        Returns the ElementTree instance containing parsed XML validation file.
-        It parses the file in case it has not been parsed yet.
-        """
-        if self._input_tree:
-            return self._valid_tree
-
-        try:
-            self._valid_tree = XML.parse(self._fd_valid)
-        except (ValueError, XML.ParseError):
-            self._error(EXIT_CODES["error_wrong_format"])
-        return self._input_tree
+        return self._input_tree, self._valid_tree
 
     def write(self, content):
         """\
@@ -207,20 +196,19 @@ def _main():
 
     settings = Parameters().process()
     io = InputOutput(settings)
-    tree = io.read_tree()
+    input_tree, valid_tree = io.read_trees()
 
     # Dumping the whole tree:
-    XML.dump(tree)
+    XML.dump(input_tree)
     print("\n----------------------\n")
     
     # Displaying root and some following elements:
-    pprint(vars(tree))
-    pprint(vars(tree._root))
-    pprint(tree._root._children)
-    pprint(vars(tree._root._children[0]))
-
+    pprint(vars(input_tree))
+    pprint(vars(input_tree._root))
+    pprint(input_tree._root._children)
+    pprint(vars(input_tree._root._children[0]))
+    pprint(valid_tree)
     return 0
-
 
 if __name__ == '__main__':
     status = _main()
