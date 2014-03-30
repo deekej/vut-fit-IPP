@@ -37,10 +37,123 @@ Provides all necessary classes (Table, TableBuilder) and theirs methods for
 creating internal representation of SQL tables.
 """
 
+# ========
+# Imports:
+# ========
+import functools
 
 # ===============
 # Public Classes:
 # ===============
+
+class Singleton(type):
+    """\
+    Singleton meta-class implementation for other SQL types defined in this
+    module.
+    """
+    _instances = dict()
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+@functools.total_ordering
+class BIT(metaclass=Singleton):
+    """\
+    Class representing BIT type of SQL. Use of logical comparison operators is
+    allowed. Apply str() or repr() functions to retrieve the textual
+    representation of the type.
+    """
+    _order = 1
+
+    def __eq__(self, other):
+        return (self._order == other._order)
+
+    def __lt__(self, other):
+        return (self._order < other._order)
+
+    def __repr__(self):
+        return 'BIT'
+
+
+@functools.total_ordering
+class INT(metaclass=Singleton):
+    """\
+    Class representing INT type of SQL. Use of logical comparison operators is
+    allowed. Apply str() or repr() functions to retrieve the textual
+    representation of the type.
+    """
+    _order = 2
+
+    def __eq__(self, other):
+        return (self._order == other._order)
+
+    def __lt__(self, other):
+        return (self._order < other._order)
+
+    def __repr__(self):
+        return 'INT'
+
+
+@functools.total_ordering
+class FLOAT(metaclass=Singleton):
+    """\
+    Class representing FLOAT type of SQL. Use of logical comparison operators is
+    allowed. Apply str() or repr() functions to retrieve the textual
+    representation of the type.
+    """
+    _order = 3
+
+    def __eq__(self, other):
+        return (self._order == other._order)
+
+    def __lt__(self, other):
+        return (self._order < other._order)
+
+    def __repr__(self):
+        return 'FLOAT'
+
+
+@functools.total_ordering
+class NVARCHAR(metaclass=Singleton):
+    """\
+    Class representing NVARCHAR type of SQL. Use of logical comparison operators
+    is allowed. Apply str() or repr() functions to retrieve the textual
+    representation of the type.
+    """
+    _order = 4
+
+    def __eq__(self, other):
+        return (self._order == other._order)
+
+    def __lt__(self, other):
+        return (self._order < other._order)
+
+    def __repr__(self):
+        return 'NVARCHAR'
+
+
+@functools.total_ordering
+class NTEXT(metaclass=Singleton):
+    """\
+    Class representing NTEXT type of SQL. Use of logical comparison operators is
+    allowed. Apply str() or repr() functions to retrieve the textual
+    representation of the type.
+    """
+    _order = 4
+
+    def __eq__(self, other):
+        return (self._order == other._order)
+
+    def __lt__(self, other):
+        return (self._order < other._order)
+
+    def __repr__(self):
+        return 'NTEXT'
+
+
 class Table(object):
     """\
     Container class representing one SQL table. Requires table name upon
@@ -57,7 +170,7 @@ class Table(object):
         """Adds one declaration (column) into the table."""
         self.decls[column_name] = data_type
 
-    def add_foreign_key(self, foreign_key, data_type='INT'):
+    def add_foreign_key(self, foreign_key, data_type=INT()):
         """\
         Adds one foreign key into the table. (Default type of key is
         'INT'.)"""
@@ -117,13 +230,15 @@ class Table(object):
         table_tail = "\n);\n"
 
         for (col_name, d_type) in sorted(self.decls.items()):
-            table_body += "  {0}".format(col_name).ljust(30) + "%s,\n" % d_type
+            table_body += "  {0}".format(col_name).ljust(30)\
+                          + "%s,\n" % str(d_type)
         
         if self.decls and self.fkeys:
             table_body += "\n"
 
         for (fkey, fk_type) in sorted(self.fkeys.items()):
-            table_body += "  {0}".format(fkey).ljust(30) + "%s,\n" % fk_type
+            table_body += "  {0}".format(fkey).ljust(30)\
+                          + "%s,\n" % str(fk_type)
 
         return table_head + table_pkey + table_body.rstrip(",\n") + table_tail 
 
@@ -183,18 +298,19 @@ class TablesBuilder(object):
         """
         for (table_name, table) in self.tables.items():
             file.write(str(table) + "\n")
-        
+
 
 # ===================
 # Internal functions:
 # ===================
 def _main():
     """Simple module-testing function."""
+
     table = Table("table")
-    table.add_column("value", "BIT")
-    table.add_column("value2", "NVCHAR")
-    table.add_column("value3", "FLOAT")
-    table.add_column("value4", "NTEXT")
+    table.add_column("value", BIT())
+    table.add_column("value2", NVARCHAR())
+    table.add_column("value3", FLOAT())
+    table.add_column("value4", NTEXT())
     table.add_foreign_key("table2")
     table.add_foreign_key("table3")
     table.add_foreign_key("table4")
@@ -249,6 +365,33 @@ def _main():
         xml_declaration=False,
         method='xml',
     )
+    
+    bit = BIT()
+    int = INT()
+    float = FLOAT()
+    nvarchar = NVARCHAR()
+    ntext = NTEXT()
+
+    print(str(bit))
+    print(str(int))
+    print(str(float))
+    print(str(nvarchar))
+    print(str(ntext))
+
+    if bit < int < float < nvarchar == ntext:
+        print("Successful ordering!")
+    else:
+        print("Failed ordering!")
+
+    if bit != bit or int != int or float != float or nvarchar != nvarchar\
+       or ntext != ntext or nvarchar != ntext:
+        print("Failed ordering!")
+
+    bit2 = BIT()
+
+    if bit > int > float > nvarchar > ntext or bit2 != bit2: 
+        print("Failed ordering!")
+    
     return 0
 
 if __name__ == '__main__':
