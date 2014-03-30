@@ -71,8 +71,9 @@ class InputOutput(object):
         module). It also registers closing of the opened files at any exit.
         """
             
-        _xml_output = settings.g
-        _output_header = settings.header
+        self._xml_output = settings.g
+        self._output_header = settings.header
+
         atexit.register(self._close)    # Making sure the files will be closed.
 
         # Trying to open specified files in text mode and with UTF-8 encoding:
@@ -135,13 +136,14 @@ class InputOutput(object):
         method. It can add a header output in case it was required.
         """
         try:
-            if self._xml_output:
-                # Adding header as a comment into ElementTree object, which will
-                # be printed below:
-                pass                        # TODO: Adding XML comment later.
-            else:
-                # Printing header in required format.
-                self._fd_output.write("--%s\n\n" % self._output_header)
+            if self._output_header:
+                if self._xml_output:
+                    # Adding header as a comment into ElementTree object, which
+                    # will be printed below:
+                    pass                    # TODO: Adding XML comment later.
+                else:
+                    # Printing header in required format.
+                    self._fd_output.write("--%s\n\n" % self._output_header)
 
             content.write(
                 file=self._fd_output,
@@ -204,9 +206,15 @@ def _main():
     
     # Displaying root and some following elements:
     pprint(vars(input_tree))
+    print("\n----------------------\n")
     pprint(vars(input_tree._root))
+    print("\n----------------------\n")
     pprint(input_tree._root._children)
+    print("\n----------------------\n")
     pprint(vars(input_tree._root._children[0]))
+    print("\n----------------------\n")
+    pprint(input_tree.getroot())
+    print("\n----------------------\n")
     pprint(valid_tree)
     return 0
 
