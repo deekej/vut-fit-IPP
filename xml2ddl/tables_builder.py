@@ -5,9 +5,9 @@
 # ============================================================================= #
 #
 # File (module): tables_builder.py
-# Version:       1.0.0.0
+# Version:       1.2.0.0
 # Start date:    23-03-2014
-# Last update:   25-03-2014
+# Last update:   31-03-2014
 #
 # Course:        IPP (summer semester, 2014)
 # Project:       Script for converting XML format into DDL (SQL) format,
@@ -42,10 +42,19 @@ creating internal representation of SQL tables.
 # ========
 import functools
 
+# ===========
+# Exceptions:
+# ===========
+class NamesConflict(Exception):
+    """\
+    Exception for representing conflicting names of column names and names of 
+    foreign keys.
+    """
+    pass
+
 # ===============
 # Public Classes:
 # ===============
-
 class Singleton(type):
     """\
     Singleton meta-class implementation for other SQL types defined in this
@@ -139,6 +148,13 @@ class NVARCHAR(metaclass=Singleton):
 class NTEXT(metaclass=Singleton):
     """\
     Class representing NTEXT type of SQL. Use of logical comparison operators is
+        Adds one column of given name and data type into the table. In case the
+        given name would conflict with already existing foreign key, the
+        NamesConflict exception is raised. If the column already exists this
+        method raises a KeyError exception.
+        
+        If you want to change the data type without raising an exception, use
+        the update() method.
     allowed. Apply str() or repr() functions to retrieve the textual
     representation of the type.
     """
@@ -160,62 +176,112 @@ class Table(object):
     instantiation and using str() function on the instance returns appropriate
     string representing the table in SQL syntax.
     """
+    value_str = "value"
+    value_type = None
 
     def __init__(self, table_name):
         self.name = table_name
-        self.decls = dict()             # Table's declarations.
+        self.attrs = dict()             # Table's declarations from attributes.
         self.fkeys = dict()             # Table's foreign keys.
 
-    def add_column(self, column_name, data_type):
-        """Adds one declaration (column) into the table."""
-        self.decls[column_name] = data_type
+    def set_value_type(self, data_type):
+        if data_type is None:
+            pass
+        elif self.value_type is None or self.value_type < data_type:
+            self.value_type = data_type
 
-    def add_foreign_key(self, foreign_key, data_type=INT()):
+    def set_attr(self, attr_name, data_type):
         """\
-        Adds one foreign key into the table. (Default type of key is
-        'INT'.)"""
-        self.fkeys[foreign_key] = data_type
+        Sets the column of given attribute name to a higher data type, if the
+        data type needs updating, or creates a new column for the given
+        attribute name, if it doesn't exist yet.
 
-    def edit_column(self, column_name, column_name_new, data_type_new):
-        """Allows changing the whole declaration (column)."""
-        self.decls[column_name] = data_type_new
-        self.decls[column_name_new] = self.decls.pop(column_name)
+        In case the attribute name is value, then the data type of .value_type
+        is updated if needed.
+        """
+        if attr_name in self.attrs:
+            if self.attrs[attr_name] < data_type:
+                self.attrs[attr_name] = data_type 
+        elif attr_name in self.fkeys:
+            raise NamesConflict
+        elif attr_name == self.value_str:
+            if self.value_type is None or self.value_type < data_type:
+                self.value_type = data_type
+        else:
+            self.attrs[attr_name] = data_type
 
-    def edit_column_name(self, column_name, column_name_new):
-        """Allows renaming the declaration (column)."""
-        self.decls[column_name_new] = self.decls.pop(column_name)
+    def set_fkey(self, fkey, data_type=INT()):
+        """\
+        Sets the foreign key of given name to a new data type. (Default is
+        'INT'.) If the foreign key of given name doesn't exist, it is created.
+        """
+        if fkey in self.fkeys:
+            if self.fkeys[fkey] != data_type:
+                self.fkeys[fkey] = data_type
+        elif fkey in self.attrs:
+            raise NamesConflict
+        else:
+            self.fkeys[fkey] = data_type
 
-    def edit_column_type(self, column_name, data_type_new):
-        """Allows changing the type of declaration (column)."""
-        self.decls[column_name] = data_type_new
-    
-    def edit_foreign_key(self, foreign_key, foreign_key_new):
-        """Allows renaming the foreign key."""
-        self.fkeys[foreign_key_new] = self.fkeys.pop(foreign_key)
-    
-    def remove_column(self, column_name):
-        """Remove declaration (column) of given name."""
-        del(self.decls[column_name])
+    def rename_attr(self, attr_name, attr_name_new):
+        """\
+        Renames declaration created for attribute of given name to new one.
+        Raises a KeyError in case the given name declaration does not exist.
+        """
+        self.attrs[attr_name_new] = self.attrs.pop(attr_name)
 
-    def remove_foreign_key(self, foreign_key):
-        """Removes foreign key of given name."""
-        del(self.fkeys[foreign_key])
+    def rename_fkey(self, fkey, fkey_new):
+        """\
+        Renames the foreign key of given name to new one. Raises a KeyError in
+        case the foreign key of given name does not exist.
+        """
+        self.fkeys[fkey_new] = self.fkeys.pop(fkey)
 
-    def remove_all_columns(self):
-        """Removes all declarations (columns)."""
-        self.decls.clear()
+    def remove_attr(self, attr_name):
+        """\
+        Removes declaration created for attribute of given name. Raises a
+        KeyError in case the given name declaration does not exist.
+        """
+        del(self.attrs[attr_name])
 
-    def remove_all_foreign_keys(self):
-        """Removes all foreign keys."""
+    def remove_fkey(self, fkey):
+        """\
+        Removes a foreign key of given name. Raises a KeyError in case the
+        foreign key of given name does not exist.
+        """
+        del(self.fkeys[fkey])
+
+    def reset_attrs(self):
+        """\
+        Removes all declarations created from attributes.
+        """
+        self.attrs.clear()
+
+    def reset_fkeys(self):
+        """\
+        Removes all foreign keys.
+        """
         self.fkeys.clear()
 
-    def reset(self):
-        """Removes all declarations (columns) and foreign keys."""
-        self.decls.clear()
-        self.fkeys.clear()
+    def reset_value_type(self):
+        """\
+        Resets the type of 'value' column.
+        """
+        self.value_type = None
 
-    def _edit_table_name(self, table_name_new):
-        """Allows renaming the table."""
+    def reset_all(self):
+        """\
+        Resets the table into state identical to when the table was
+        instantiated.
+        """
+        self.attrs.clear()
+        self.fkeys.clear()
+        self.value_type = None
+
+    def _rename_table(self, table_name_new):
+        """\
+        Allows renaming the table.
+        """
         self.name = table_name_new
         
     def __repr__(self):
@@ -223,17 +289,22 @@ class Table(object):
         table_pkey = "  PRK_{0}_ID".format(self.name).ljust(30)\
                      + "INT PRIMARY KEY,\n"
 
-        if not self.decls and not self.fkeys:
-            return table_head + table_pkey + ");\n"   
+        if not self.value_type and not self.attrs and not self.fkeys:
+            return table_head + table_pkey.rstrip(",\n") + "\n);\n"   
+        
+        if self.value_type:
+            table_body = "\n  {0}".format(self.value_str).ljust(31)\
+                         + "%s,\n" % str(self.value_type)
+        else:
+            table_body = "\n"
 
-        table_body = "\n"
         table_tail = "\n);\n"
 
-        for (col_name, d_type) in sorted(self.decls.items()):
-            table_body += "  {0}".format(col_name).ljust(30)\
+        for (attr_name, d_type) in sorted(self.attrs.items()):
+            table_body += "  {0}".format(attr_name).ljust(30)\
                           + "%s,\n" % str(d_type)
         
-        if self.decls and self.fkeys:
+        if self.attrs and self.fkeys:
             table_body += "\n"
 
         for (fkey, fk_type) in sorted(self.fkeys.items()):
@@ -255,9 +326,9 @@ class TablesBuilder(object):
     def create_table(self, table_name):
         """\
         Creates table of given name. Raises a KeyError in case the table already
-        exists.
+        exists or None type was supplied as a table_name.
         """
-        if table_name in self.tables:
+        if table_name is None or table_name in self.tables:
             raise KeyError
         else:
             self.tables[table_name] = Table(table_name)
@@ -265,29 +336,33 @@ class TablesBuilder(object):
 
     def get_table(self, table_name):
         """\
-        This method acts in same way as get() method of dictionary - returns the
-        table of given name from dictionary or creates one, if it doesn't
-        exists.
+        This method returns the table of given name from dictionary or creates
+        one, if it doesn't exists. In case None type was supplied as table_name,
+        then raises a KeyError exception.
         """
-        if table_name not in self.tables:
+        if table_name is not None and table_name not in self.tables:
             self.tables[table_name] = Table(table_name)
         return self.tables[table_name]
 
     def items(self):
         """\
-        Wrapping method for returning content of items() method of dictionary.
+        Wrapping method for returning content of tables dictionary.
         """
         return self.tables.items()
 
     def rename_table(self, table_name, table_name_new):
         """\
-        Renames the given table to new name and the key in dictionary also.
+        Renames the existing table if it exists to a new name. Raises a KeyError
+        if the wrong names were supplied.
         """
-        self.tables[table_name]._edit_table_name(table_name_new)
+        self.tables[table_name]._rename_table(table_name_new)
         self.tables[table_name_new] = self.tables.pop(table_name)
 
     def remove_table(self, table_name):
-        """Removes table of given name completely."""
+        """\
+        Removes table of given name completely. Raises a KeyError if the table
+        doesn't exist.
+        """
         del self.tables[table_name]
 
     def write(self, file, encoding='us-ascii', xml_declaration=None,
@@ -296,42 +371,48 @@ class TablesBuilder(object):
         Polymorphic method as ElementTree.write() method. Prints the content of
         tables in dictionary and separates them with empty line.
         """
-        for (table_name, table) in self.tables.items():
+        for (table_name, table) in sorted(self.tables.items()):
             file.write(str(table) + "\n")
-
 
 # ===================
 # Internal functions:
 # ===================
 def _main():
-    """Simple module-testing function."""
+    """\
+    Testing the combination of module defined class' methods and correctness of
+    the output.
+    """
 
     table = Table("table")
-    table.add_column("value", BIT())
-    table.add_column("value2", NVARCHAR())
-    table.add_column("value3", FLOAT())
-    table.add_column("value4", NTEXT())
-    table.add_foreign_key("table2")
-    table.add_foreign_key("table3")
-    table.add_foreign_key("table4")
+    table.set_value_type(None)
+    table.set_attr("value1", BIT())
+    table.set_attr("value2", NVARCHAR())
+    table.set_value_type(BIT())
+    table.set_attr("value3", FLOAT())
+    table.set_attr("value4", NTEXT())
+    table.set_fkey("table2")
+    table.set_fkey("table3")
+    table.set_fkey("table4")
 
     sys.stdout.write(str(table) + "\n")
 
-    table.edit_column("value", "new_value", "NEW_BIT")
-    table.edit_column_name("value2", "new_value2")
-    table.edit_column_type("value3", "NEW_NVCHAR")
-    table.edit_foreign_key("table2", "new_table2")
-    table._edit_table_name("new_table")
+    table.set_value_type(FLOAT())
+    table.rename_attr("value2", "new_value2")
+    table.rename_attr("value3", "new_value3")
+    table.rename_fkey("table2", "new_table2")
+    table._rename_table("new_table")
+    table.set_value_type(BIT())
 
     sys.stdout.write(str(table) + "\n")
 
-    table.remove_column("value4")
-    table.remove_foreign_key("table4")
+    table.remove_attr("value4")
+    table.remove_fkey("table4")
 
     sys.stdout.write(str(table) + "\n")
 
-    table.remove_all_columns()
-    table.remove_all_foreign_keys()
+    table.reset_attrs()
+    table.reset_fkeys()
+    table.reset_value_type()
 
     sys.stdout.write(str(table) + "\n")
 
@@ -340,9 +421,9 @@ def _main():
     database.create_table("database_table2")
     database.create_table("database_table3")
 
-    database.get_table("database_table3").add_column("column_value", "INT")
+    database.get_table("database_table3").set_attr("column_value", INT())
 
-    for (table_name, table) in database.items():
+    for (table_name, table) in sorted(database.items()):
         sys.stdout.write(str(table) + "\n")
 
     database.rename_table("database_table3", "renamed_table")
@@ -356,7 +437,7 @@ def _main():
     sys.stdout.write(str(database.get_table("renamed_table")) + "\n")
     sys.stdout.write(str(database.get_table("missing_table")) + "\n")
 
-    print("\n------------------------\n")
+    print("------------------------\n")
 
     # Trying the same (polymorphic) call as for ElementTree.write() method:
     database.write(
@@ -365,6 +446,8 @@ def _main():
         xml_declaration=False,
         method='xml',
     )
+
+    print("------------------------\n")
     
     bit = BIT()
     int = INT()
