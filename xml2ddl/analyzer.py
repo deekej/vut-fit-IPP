@@ -50,13 +50,6 @@ from tables_builder import NTEXT
 # ==================
 # Exception Classes:
 # ==================
-class InvalidXML(Exception):
-    """\
-    An error exception raised when unexpected content was find behind the XML
-    element. There's no specification how to handle this yet.
-    """
-    pass
-
 class ValidationFail(Exception):
     """\
     An error exception when the generated database structure from given
@@ -172,14 +165,6 @@ class XMLAnalyser(object):
         else:
             self._run_etc(tree, dbase)
 
-#         tree_iter = tree.iter()
-#         next(tree_iter)
-#         for element in tree_iter:
-#             pprint(element)
-#             for subelement in list(element):
-#                 print(subelement.tag)
-#             pprint(vars(element))
-
     def _run_b(self, tree, dbase):
         pass
 
@@ -200,39 +185,79 @@ class XMLAnalyser(object):
             text_type = self._classify_cont(elem.text)
             tail_type = self._classify_cont(elem.tail)
 
-            if text_type:
-                table.add_column("value" , text_type)
+            table.set_value_type(text_type)     # Setting actual value type.
            
             if not self._ignore_attr: 
                 for (attr_name, attr_value) in elem.attrib.items():
                     attr_type = self._classify_attr(attr_value)
-                    table.add_foreign_key(attr_name, attr_type)
+                    table.set_attr(attr_name, attr_type)
 
             # Adding parents mapping and counting occurrences of sub-elements:
             for child in list(elem):
                 self._parents_map[child] = elem
                 self._subelem_count[child.tag] += 1
-                # table.add_foreign_key(self._fkey_string(child.tag))
-
+            
+            # Adding foreign keys:
             for (child_name, count) in self._subelem_count.items():
-                if count > 1:
-                    for i in range(1, count + 1):
-                        table.add_foreign_key(child_name + str(i) + "_ID")
+                if count == 1:
+                    table.set_fkey(child_name + "_ID")
                 else:
-                    table.add_foreign_key(child_name + "_ID")
+                    for i in range(1, count + 1):
+                        table.set_fkey(child_name + str(i) + "_ID")
 
             # If the tail is not empty, then the text of parent wasn't parsed
             # before other sub-elements were. Updating the parent if necessary:
             if tail_type:
                 parent = self._parents_map[elem]
-
                 if parent is not None:
                     parent_table = dbase.get_table(parent.tag)
-                    parent_table.add_column("value", tail_type) 
-
+                    parent_table.set_value_type(tail_type) 
 
     def _run_etc(self, tree, dbase):
-        pass
+        tree_iter = tree.iter()     # Getting the XML tree iterator.
+        next(tree_iter)             # Skipping the root element.
+        
+        # Parents mapping initialization:
+        for elem in list(tree.getroot()):
+            self._parents_map[elem] = None
+
+        # Iterating over all XML elements except the root:
+        for elem in tree_iter:
+            self._columns_count.clear()         # Reseting columns counter.
+            self._subelem_count.clear()         # Reseting children counter.
+            table = dbase.get_table(elem.tag)   # Getting table.
+
+            text_type = self._classify_cont(elem.text)
+            tail_type = self._classify_cont(elem.tail)
+
+            table.set_value_type(text_type)     # Setting actual value type.
+           
+            if not self._ignore_attr: 
+                for (attr_name, attr_value) in elem.attrib.items():
+                    attr_type = self._classify_attr(attr_value)
+                    table.set_attr(attr_name, attr_type)
+
+            # Adding parents mapping and counting occurrences of sub-elements:
+            for child in list(elem):
+                self._parents_map[child] = elem
+                self._subelem_count[child.tag] += 1
+            
+            # Adding foreign keys:
+            for (child_name, count) in self._subelem_count.items():
+                if count > self._etc:
+                    child_table = dbase.get_table(child_name)
+                    child_table.set_fkey(elem.tag + "_ID")
+                else:
+                    for i in range(1, count + 1):
+                        table.set_fkey(child_name + str(i) + "_ID")
+
+            # If the tail is not empty, then the text of parent wasn't parsed
+            # before other sub-elements were. Updating the parent if necessary:
+            if tail_type:
+                parent = self._parents_map[elem]
+                if parent is not None:
+                    parent_table = dbase.get_table(parent.tag)
+                    parent_table.set_value_type(tail_type) 
 
 # ===================
 # Internal functions:
@@ -245,9 +270,9 @@ def _main():
     
     try:
         result = analyser.run()
-    except InvalidXML:
-        sys.stderr.write("InvalidXML exception catched!\n")
-        sys.exit(4)
+    except NamesConflict:
+        sys.stderr.write("Conflicting names detected!\n")
+        sys.exit(90)
     except ValidationFail:
         sys.stderr.write("ValidationFail exception catched!\n")
         sys.exit(91)
