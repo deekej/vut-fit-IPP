@@ -350,6 +350,12 @@ class TablesBuilder(object):
         """
         return self.tables.items()
 
+    def keys(self):
+        """\
+        Wrapping method for returning the dictionary keys.
+        """
+        return self.tables.keys()
+
     def rename_table(self, table_name, table_name_new):
         """\
         Renames the existing table if it exists to a new name. Raises a KeyError
