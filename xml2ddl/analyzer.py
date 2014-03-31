@@ -166,9 +166,6 @@ class XMLAnalyser(object):
             self._run_etc(tree, dbase)
 
     def _run_b(self, tree, dbase):
-        pass
-
-    def _run_default(self, tree, dbase):
         tree_iter = tree.iter()     # Getting the XML tree iterator.
         next(tree_iter)             # Skipping the root element.
         
@@ -192,6 +189,43 @@ class XMLAnalyser(object):
                     attr_type = self._classify_attr(attr_value)
                     table.set_attr(attr_name, attr_type)
 
+            # Adding parents mapping and references to children:
+            for child in list(elem):
+                self._parents_map[child] = elem
+                table.set_fkey(child.tag + "_ID")
+
+            # If the tail is not empty, then the text of parent wasn't parsed
+            # before other sub-elements were. Updating the parent if necessary:
+            if tail_type:
+                parent = self._parents_map[elem]
+                if parent is not None:
+                    parent_table = dbase.get_table(parent.tag)
+                    parent_table.set_value_type(tail_type) 
+
+    def _run_default(self, tree, dbase):
+        tree_iter = tree.iter()     # Getting the XML tree iterator.
+        next(tree_iter)             # Skipping the root element.
+        
+        # Parents mapping initialization:
+        for elem in list(tree.getroot()):
+            self._parents_map[elem] = None
+
+        # Iterating over all XML elements except the root:
+        for elem in tree_iter:
+            self._columns_count.clear()         # Reseting columns counter.
+            self._subelem_count.clear()         # Reseting children counter.
+            table = dbase.get_table(elem.tag)   # Getting table.
+
+            text_type = self._classify_cont(elem.text)
+            tail_type = self._classify_cont(elem.tail)
+
+            table.set_value_type(text_type)     # Setting actual value type.
+           
+            if not self._ignore_attr:
+                for (attr_name, attr_value) in elem.attrib.items():
+                    attr_type = self._classify_attr(attr_value)
+                    table.set_attr(attr_name, attr_type)
+
             # Adding parents mapping and counting occurrences of sub-elements:
             for child in list(elem):
                 self._parents_map[child] = elem
@@ -211,7 +245,7 @@ class XMLAnalyser(object):
                 parent = self._parents_map[elem]
                 if parent is not None:
                     parent_table = dbase.get_table(parent.tag)
-                    parent_table.set_value_type(tail_type) 
+                    parent_table.set_value_type(tail_type)
 
     def _run_etc(self, tree, dbase):
         tree_iter = tree.iter()     # Getting the XML tree iterator.
