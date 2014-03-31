@@ -39,6 +39,11 @@
 # Imports:
 # ========
 from tables_builder import TablesBuilder
+from tables_builder import BIT
+from tables_builder import INT
+from tables_builder import FLOAT
+from tables_builder import NVARCHAR
+from tables_builder import NTEXT
 
 # ==================
 # Exception Classes:
@@ -64,7 +69,10 @@ class XMLAnalyser(object):
     """\
     Doc-string.
     """
-    _int_type = ['0', '1', 'true', 'false']
+    _BIT_list = ['0', '1', 'true', 'false']
+    _parents_map = dict()
+    _columns_count = dict()
+    _children_count = dict()
 
     def __init__(self, settings, input_tree, valid_tree=None):
         self._etc = settings.etc
@@ -73,16 +81,29 @@ class XMLAnalyser(object):
 
         self._input_tree = input_tree
         self._valid_tree = valid_tree
-
+        
+        # Database initialization:
         self._dbase = TablesBuilder()
 
         if valid_tree is not None:
             self._dbase_valid = TablesBuilder()
 
     def get_result(self):
-        return self._dbase
+        """\
+        Returns the result of previous run or None if the analyser has not been
+        run yet.
+        """
+        if self._dbase:
+            return self._dbase
+        else:
+            return None
 
     def run(self):
+        """\
+        Runs the XML analysis and database generator. If validation tree was
+        supplied, then this method analysis it too and compares the databases.
+        It raises an NotIdentical exception if they are not the same.
+        """
         self._run(self._input_tree, self._dbase)
 
         if self._valid_tree is not None:
@@ -104,36 +125,105 @@ class XMLAnalyser(object):
                 raise NotIdentical
 
     def _classify_attr(self, str):
-        if len(str) == 0 or str.isspace() or str.lower() in self._int_type:
-            return 'BIT'
+        """\
+        Internal method for classifying the type of attribute.
+        """
+        if len(str) == 0 or str.isspace() or str.lower() in self._BIT_list:
+            return BIT()
         elif str.isnumeric():
             try:
                 int(str)
-                return 'INT'
+                return INT()
             except ValueError:
-                return 'FLOAT'
+                return FLOAT()
         else:
-            return 'NVARCHAR'
+            return NVARCHAR()
 
-    def _classify_text(self, str):
-        if len(str) == 0 or str.isspace() or str.lower() in self._int_type:
-            return 'BIT'
+    def _classify_cont(self, str):
+        """\
+        Internal method for classifying the content of an element.
+        """
+        if len(str) == 0 or str.isspace() or str.lower() in self._BIT_list:
+            return BIT()
         elif str.isnumeric():
             try:
                 int(str)
-                return 'INT'
+                return INT()
             except ValueError:
-                return 'FLOAT'
+                return FLOAT()
         else:
-            return 'NTEXT'
-        
+            return NTEXT()
+
+    def _fkey_string(self, str, occur_count=0):
+        """\
+        Doc-string.
+        """
+        # Default behaviour first:
+        if self._etc is None:
+            self._columns_count[str] += 1
+            return str + self._columns_count[str] + "_ID"
+        # NOTE: Not needed currently, waiting for official memo.
+        # elif self._etc == 0:
+        #     return None
+        elif self._etc == 1 or occur_count > self._etc:
+            return str + "_ID"
+        else:
+            self._columns_count[str] += 1
+            return str + self._columns_count[str] + "_ID"
+
     def _run(self, tree, dbase):
-        tree_iter = tree.iter()
-        next(tree_iter)
-        for element in tree_iter:
-            pprint(element)
-            pprint(vars(element))
+        """\
+        Calls appropriate internal analysis method.
+        """
+        if self._highest_elem_only:
+            self._run_b(tree, dbase)
+        elif self._etc is None:
+            self._run_default(tree, dbase)
+        else:
+            self._run_etc(tree, dbase)
 
+#         tree_iter = tree.iter()
+#         next(tree_iter)
+#         for element in tree_iter:
+#             pprint(element)
+#             for subelement in list(element):
+#                 print(subelement.tag)
+#             pprint(vars(element))
+
+    def _run_b(self, tree, dbase):
+        pass
+
+    def _run_default(self, tree, dbase):
+        tree_iter = tree.iter()     # Getting the XML tree iterator.
+        next(tree_iter)             # Skipping the root element.
+        
+        # Parents mapping initialization:
+        for elem in list(tree.getroot()):
+            self._parents_map[elem] = None
+
+        # Iterating over all XML elements except the root:
+        for elem in tree_iter:
+            table = dbase.get_table(elem.tag)
+            pprint(vars(elem))
+            print()
+            
+            # Adding parents mapping:
+            for child in list(elem):
+                self._parents_map[child] = elem
+
+            # If the tail is not empty, then the text of parent wasn't parsed
+            # before other sub-elements were. Updating the parent if necessary:
+            if elem.tail:
+                content = self._classify_cont(elem.tail)
+                parent = self._parents_map[elem]
+
+                if parent is not None:
+                    parent_table = dbase.get_table(parent.tag)
+                    
+
+
+    def _run_etc(self, tree, dbase):
+        pass
 
 # ===================
 # Internal functions:
