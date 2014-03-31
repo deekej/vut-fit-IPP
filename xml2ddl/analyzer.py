@@ -38,6 +38,8 @@
 # ========
 # Imports:
 # ========
+from collections import defaultdict
+
 from tables_builder import TablesBuilder
 from tables_builder import BIT
 from tables_builder import INT
@@ -71,8 +73,8 @@ class XMLAnalyser(object):
     """
     _BIT_list = ['0', '1', 'true', 'false']
     _parents_map = dict()
-    _columns_count = dict()
-    _children_count = dict()
+    _columns_count = defaultdict(int)
+    _subelem_count = defaultdict(int)
 
     def __init__(self, settings, input_tree, valid_tree=None):
         self._etc = settings.etc
@@ -124,52 +126,40 @@ class XMLAnalyser(object):
             if str(self._dbase[key]) != str(self._dbase_valid[key]):
                 raise NotIdentical
 
-    def _classify_attr(self, str):
+    def _classify_attr(self, string):
         """\
         Internal method for classifying the type of attribute.
         """
-        if len(str) == 0 or str.isspace() or str.lower() in self._BIT_list:
+        if string is None:
+            return None
+        elif len(string) == 0 or string.isspace()\
+             or string.lower() in self._BIT_list:
             return BIT()
-        elif str.isnumeric():
-            try:
-                int(str)
+
+        try:
+            if float(string).is_integer():
                 return INT()
-            except ValueError:
+            else:
                 return FLOAT()
-        else:
+        except ValueError:
             return NVARCHAR()
 
-    def _classify_cont(self, str):
+    def _classify_cont(self, string):
         """\
         Internal method for classifying the content of an element.
         """
-        if len(str) == 0 or str.isspace() or str.lower() in self._BIT_list:
+        if string is None or string.isspace() or len(string) == 0:
+            return None
+        elif string.lower() in self._BIT_list:
             return BIT()
-        elif str.isnumeric():
-            try:
-                int(str)
-                return INT()
-            except ValueError:
-                return FLOAT()
-        else:
-            return NTEXT()
 
-    def _fkey_string(self, str, occur_count=0):
-        """\
-        Doc-string.
-        """
-        # Default behaviour first:
-        if self._etc is None:
-            self._columns_count[str] += 1
-            return str + self._columns_count[str] + "_ID"
-        # NOTE: Not needed currently, waiting for official memo.
-        # elif self._etc == 0:
-        #     return None
-        elif self._etc == 1 or occur_count > self._etc:
-            return str + "_ID"
-        else:
-            self._columns_count[str] += 1
-            return str + self._columns_count[str] + "_ID"
+        try:
+            if float(string).is_integer():
+                return INT()
+            else:
+                return FLOAT()
+        except ValueError:
+            return NTEXT()
 
     def _run(self, tree, dbase):
         """\
@@ -203,23 +193,42 @@ class XMLAnalyser(object):
 
         # Iterating over all XML elements except the root:
         for elem in tree_iter:
-            table = dbase.get_table(elem.tag)
-            pprint(vars(elem))
-            print()
-            
-            # Adding parents mapping:
+            self._columns_count.clear()         # Reseting columns counter.
+            self._subelem_count.clear()         # Reseting children counter.
+            table = dbase.get_table(elem.tag)   # Getting table.
+
+            text_type = self._classify_cont(elem.text)
+            tail_type = self._classify_cont(elem.tail)
+
+            if text_type:
+                table.add_column("value" , text_type)
+           
+            if not self._ignore_attr: 
+                for (attr_name, attr_value) in elem.attrib.items():
+                    attr_type = self._classify_attr(attr_value)
+                    table.add_foreign_key(attr_name, attr_type)
+
+            # Adding parents mapping and counting occurrences of sub-elements:
             for child in list(elem):
                 self._parents_map[child] = elem
+                self._subelem_count[child.tag] += 1
+                # table.add_foreign_key(self._fkey_string(child.tag))
+
+            for (child_name, count) in self._subelem_count.items():
+                if count > 1:
+                    for i in range(1, count + 1):
+                        table.add_foreign_key(child_name + str(i) + "_ID")
+                else:
+                    table.add_foreign_key(child_name + "_ID")
 
             # If the tail is not empty, then the text of parent wasn't parsed
             # before other sub-elements were. Updating the parent if necessary:
-            if elem.tail:
-                content = self._classify_cont(elem.tail)
+            if tail_type:
                 parent = self._parents_map[elem]
 
                 if parent is not None:
                     parent_table = dbase.get_table(parent.tag)
-                    
+                    parent_table.add_column("value", tail_type) 
 
 
     def _run_etc(self, tree, dbase):
