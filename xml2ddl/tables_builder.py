@@ -321,18 +321,24 @@ class TablesBuilder(object):
     .tables attribute.
     """
     def __init__(self):
-        self.tables = dict()
+        self._tables = dict()
+
+    def __iter__(self):
+        return iter(self._tables)
+
+    def __getitem__(self, item):
+        return self._tables[item]
     
     def create_table(self, table_name):
         """\
         Creates table of given name. Raises a KeyError in case the table already
         exists or None type was supplied as a table_name.
         """
-        if table_name is None or table_name in self.tables:
+        if table_name is None or table_name in self._tables:
             raise KeyError
         else:
-            self.tables[table_name] = Table(table_name)
-            return self.tables[table_name]
+            self._tables[table_name] = Table(table_name)
+            return self._tables[table_name]
 
     def get_table(self, table_name):
         """\
@@ -340,36 +346,36 @@ class TablesBuilder(object):
         one, if it doesn't exists. In case None type was supplied as table_name,
         then raises a KeyError exception.
         """
-        if table_name is not None and table_name not in self.tables:
-            self.tables[table_name] = Table(table_name)
-        return self.tables[table_name]
+        if table_name is not None and table_name not in self._tables:
+            self._tables[table_name] = Table(table_name)
+        return self._tables[table_name]
 
     def items(self):
         """\
         Wrapping method for returning content of tables dictionary.
         """
-        return self.tables.items()
+        return self._tables.items()
 
     def keys(self):
         """\
         Wrapping method for returning the dictionary keys.
         """
-        return self.tables.keys()
+        return self._tables.keys()
 
     def rename_table(self, table_name, table_name_new):
         """\
         Renames the existing table if it exists to a new name. Raises a KeyError
         if the wrong names were supplied.
         """
-        self.tables[table_name]._rename_table(table_name_new)
-        self.tables[table_name_new] = self.tables.pop(table_name)
+        self._tables[table_name]._rename_table(table_name_new)
+        self._tables[table_name_new] = self._tables.pop(table_name)
 
     def remove_table(self, table_name):
         """\
         Removes table of given name completely. Raises a KeyError if the table
         doesn't exist.
         """
-        del self.tables[table_name]
+        del self._tables[table_name]
 
     def write(self, file, encoding='us-ascii', xml_declaration=None,
               method='xml'):
@@ -377,7 +383,7 @@ class TablesBuilder(object):
         Polymorphic method as ElementTree.write() method. Prints the content of
         tables in dictionary and separates them with empty line.
         """
-        for (table_name, table) in sorted(self.tables.items()):
+        for (table_name, table) in sorted(self._tables.items()):
             file.write(str(table) + "\n")
 
 # ===================
@@ -427,7 +433,8 @@ def _main():
     database.create_table("database_table2")
     database.create_table("database_table3")
 
-    database.get_table("database_table3").set_attr("column_value", INT())
+    database.get_table("database_table2").set_attr("column_value", INT())
+    database["database_table3"].set_attr("column_value", INT())
 
     for (table_name, table) in sorted(database.items()):
         sys.stdout.write(str(table) + "\n")
@@ -439,7 +446,7 @@ def _main():
 
     for (table_name, table) in database.items():
         sys.stdout.write(str(table) + "\n")
-    sys.stdout.write(str(database.tables["renamed_table"]) + "\n")
+    sys.stdout.write(str(database._tables["renamed_table"]) + "\n")
     sys.stdout.write(str(database.get_table("renamed_table")) + "\n")
     sys.stdout.write(str(database.get_table("missing_table")) + "\n")
 
