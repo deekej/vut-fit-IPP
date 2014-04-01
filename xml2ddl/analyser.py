@@ -295,7 +295,9 @@ class XMLAnalyser(object):
             
             # Adding foreign keys:
             for (child_name, count) in self._subelem_count.items():
-                if count > self._etc:
+                if count == 1:
+                    table.set_fkey(child_name + "_ID")
+                elif count > self._etc:
                     child_table = dbase.get_table(child_name)
                     child_table.set_fkey(elem.tag + "_ID")
                 else:
