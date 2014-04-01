@@ -4,10 +4,10 @@
 
 # ============================================================================= #
 #
-# File (module): analyzer.py
+# File (module): analyser.py
 # Version:       1.0.0.0
 # Start date:    29-03-2014
-# Last update:   31-03-2014
+# Last update:   01-04-2014
 #
 # Course:        IPP (summer semester, 2014)
 # Project:       Script for converting XML format into DDL (SQL) format,
