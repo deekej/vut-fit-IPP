@@ -43,11 +43,7 @@ input into a SQL declaration, that could hold the data in the XML input.
 from collections import defaultdict
 
 from tables_builder import TablesBuilder
-from tables_builder import BIT
-from tables_builder import INT
-from tables_builder import FLOAT
-from tables_builder import NVARCHAR
-from tables_builder import NTEXT
+from tables_builder import BIT, INT, FLOAT, NVARCHAR, NTEXT
 
 # ==================
 # Exception Classes:
