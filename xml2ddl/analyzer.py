@@ -5,9 +5,9 @@
 # ============================================================================= #
 #
 # File (module): analyzer.py
-# Version:       0.0.0.1
+# Version:       1.0.0.0
 # Start date:    29-03-2014
-# Last update:   30-03-2014
+# Last update:   31-03-2014
 #
 # Course:        IPP (summer semester, 2014)
 # Project:       Script for converting XML format into DDL (SQL) format,
@@ -30,9 +30,11 @@
 # ============================================================================= #
 
 # ==================
-# Module doc-string:
+# Module Doc-string:
 # ==================
 """\
+This module provides a XMLAnalyser class for analysis and conversion of XML
+input into a SQL declaration, that could hold the data in the XML input.
 """
 
 # ========
@@ -62,7 +64,12 @@ class ValidationFail(Exception):
 # ===============
 class XMLAnalyser(object):
     """\
-    Doc-string.
+    Class for analyzing parsed XML document and transforming it into SQL format,
+    which could hold the data contained in the XML document. It expects analysis
+    settings and parsed XML as a ElementTree instance on initialization.
+    
+    Second optional ElementTree instance can be supplied to request to compare
+    the generated SQL declarations of both ElementTree instances.
     """
     _BIT_list = ['0', '1', 'true', 'false']
     _parents_map = dict()
@@ -113,11 +120,11 @@ class XMLAnalyser(object):
         from the validation tree and raises an exception if they're not same.
         """
         if self._dbase.keys() != self._dbase_valid.keys():
-            raise NotIdentical
+            raise ValidationFail
 
         for key in self._dbase:
             if str(self._dbase[key]) != str(self._dbase_valid[key]):
-                raise NotIdentical
+                raise ValidationFail
 
     def _classify_attr(self, string):
         """\
@@ -156,7 +163,8 @@ class XMLAnalyser(object):
 
     def _run(self, tree, dbase):
         """\
-        Calls appropriate internal analysis method.
+        Calls appropriate internal analysis method based on XMLAnalyser
+        settings.
         """
         if self._highest_elem_only:
             self._run_b(tree, dbase)
@@ -166,8 +174,13 @@ class XMLAnalyser(object):
             self._run_etc(tree, dbase)
 
     def _run_b(self, tree, dbase):
-        tree_iter = tree.iter()     # Getting the XML tree iterator.
-        next(tree_iter)             # Skipping the root element.
+        """\
+        Variation of default analysis method. It takes in context only one
+        sub-element with the highest data type, if there are more than one with
+        the same name.
+        """
+        tree_iter = tree.iter()                 # Getting the XML tree iterator.
+        next(tree_iter)                         # Skipping the root element.
         
         # Parents mapping initialization:
         for elem in list(tree.getroot()):
@@ -203,8 +216,12 @@ class XMLAnalyser(object):
                     parent_table.set_value_type(tail_type) 
 
     def _run_default(self, tree, dbase):
-        tree_iter = tree.iter()     # Getting the XML tree iterator.
-        next(tree_iter)             # Skipping the root element.
+        """\
+        Default analysis method, where the .etc setting option is considered
+        infinite.
+        """
+        tree_iter = tree.iter()                 # Getting the XML tree iterator.
+        next(tree_iter)                         # Skipping the root element.
         
         # Parents mapping initialization:
         for elem in list(tree.getroot()):
@@ -248,8 +265,12 @@ class XMLAnalyser(object):
                     parent_table.set_value_type(tail_type)
 
     def _run_etc(self, tree, dbase):
-        tree_iter = tree.iter()     # Getting the XML tree iterator.
-        next(tree_iter)             # Skipping the root element.
+        """\
+        Variation of default analysis method. The .etc setting option is
+        limited and therefore the SQL generation is changed.
+        """
+        tree_iter = tree.iter()                 # Getting the XML tree iterator.
+        next(tree_iter)                         # Skipping the root element.
         
         # Parents mapping initialization:
         for elem in list(tree.getroot()):
@@ -297,6 +318,14 @@ class XMLAnalyser(object):
 # Internal functions:
 # ===================
 def _main():
+    """\
+    Unit-testing function. It is using previously build modules as a necessary
+    wrapping.
+    """
+    from parameters import Parameters
+    from input_output import InputOutput
+    from tables_builder import NamesConflict
+
     settings = Parameters().process()
     interface = InputOutput(settings)
     input_tree, valid_tree = interface.read_trees()
@@ -312,14 +341,11 @@ def _main():
         sys.exit(91)
 
     interface.write(result)
+
     return 0
 
 if __name__ == '__main__':
     import sys
-    from pprint import pprint
-    from parameters import Parameters
-    from input_output import InputOutput
-    from errors import EXIT_CODES
     status = _main()
     sys.exit(status)
 
