@@ -1000,11 +1000,14 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
   # Prints XML array's name on single line.
   function xml_print_empty_array()
   {{{
-    global $PLUNGE, $PARAMS;
-    
-    $PLUNGE++;
-    output_write(offset_string() . "<" . $PARAMS["array_name"] . " />");
-    $PLUNGE--;
+    global $PARAMS;
+
+    if ($PARAMS["array_size"] == true) {
+      output_write(offset_string() . "<" . $PARAMS["array_name"] . " size=\"0\"" . " />");
+    }
+    else {
+      output_write(offset_string() . "<" . $PARAMS["array_name"] . " />");
+    }
 
     return;
   }}}
@@ -1027,9 +1030,9 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
     
     # Filling used counters with zeroes, if requested:;
     if ($PARAMS["padding"] == true) {
-      $max_num_width = mb_strwidth(strval($array_size + $PARAMS["counter_init"]));    # Getting maximum width of number.
-      $format = "%0" . $max_num_width . "u";                                          # Generating format string.
-      $index_new = sprintf($format, $index_new);                                      # Updating the index string.
+      $max_num_width = mb_strwidth(strval($array_size + $PARAMS["counter_init"] - 1));  # Getting max. width of number.
+      $format = "%0" . $max_num_width . "u";                                            # Generating format string.
+      $index_new = sprintf($format, $index_new);                                        # Updating the index string.
     }
     
     return " index=\"" . $index_new . "\"";
@@ -1152,7 +1155,7 @@ $PARAMS["offset_size"] = NULL;              # --offset-size
     global $PLUNGE, $PARAMS;
 
     $ret_val = json_classify($item);
-    
+
     # JSON object was given to function:
     if ($ret_val == "JSON_OBJECT") {
 
