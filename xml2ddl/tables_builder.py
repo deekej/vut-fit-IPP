@@ -168,7 +168,8 @@ class Table(object):
     value_type = None
 
     def __init__(self, table_name):
-        self.name = table_name
+        self.name = table_name.lower()
+        self.pkey = "PRK_%s_ID" % table_name.lower()
         self.attrs = dict()             # Table's declarations from attributes.
         self.fkeys = dict()             # Table's foreign keys.
 
@@ -187,26 +188,31 @@ class Table(object):
         In case the attribute name is value, then the data type of .value_type
         is updated if needed.
         """
-        if attr_name in self.attrs:
-            if self.attrs[attr_name] < data_type:
-                self.attrs[attr_name] = data_type 
-        elif attr_name in self.fkeys:
+        name = attr_name.lower()
+
+        if name in self.attrs:
+            if self.attrs[name] < data_type:
+                self.attrs[name] = data_type 
+        elif name in self.fkeys or name == self.pkey.lower():
             raise NamesConflict
-        elif attr_name == self.value_str:
+        elif name == self.value_str:
             if self.value_type is None or self.value_type < data_type:
                 self.value_type = data_type
         else:
-            self.attrs[attr_name] = data_type
+            self.attrs[name] = data_type
 
-    def set_fkey(self, fkey, data_type=INT()):
+    def set_fkey(self, foreign_key, data_type=INT()):
         """\
         Sets the foreign key of given name to a new data type. (Default is
         'INT'.) If the foreign key of given name doesn't exist, it is created.
         """
+        fkey = foreign_key.lower()
+
         if fkey in self.fkeys:
             if self.fkeys[fkey] != data_type:
                 self.fkeys[fkey] = data_type
-        elif fkey in self.attrs:
+        elif fkey == self.pkey.lower() or fkey == self.value_str\
+             or fkey in self.attrs:
             raise NamesConflict
         else:
             self.fkeys[fkey] = data_type
@@ -216,28 +222,28 @@ class Table(object):
         Renames declaration created for attribute of given name to new one.
         Raises a KeyError in case the given name declaration does not exist.
         """
-        self.attrs[attr_name_new] = self.attrs.pop(attr_name)
+        self.attrs[attr_name_new.lower()] = self.attrs.pop(attr_name.lower())
 
     def rename_fkey(self, fkey, fkey_new):
         """\
         Renames the foreign key of given name to new one. Raises a KeyError in
         case the foreign key of given name does not exist.
         """
-        self.fkeys[fkey_new] = self.fkeys.pop(fkey)
+        self.fkeys[fkey_new.lower()] = self.fkeys.pop(fkey.lower())
 
     def remove_attr(self, attr_name):
         """\
         Removes declaration created for attribute of given name. Raises a
         KeyError in case the given name declaration does not exist.
         """
-        del(self.attrs[attr_name])
+        del(self.attrs[attr_name.lower()])
 
     def remove_fkey(self, fkey):
         """\
         Removes a foreign key of given name. Raises a KeyError in case the
         foreign key of given name does not exist.
         """
-        del(self.fkeys[fkey])
+        del(self.fkeys[fkey.lower()])
 
     def reset_attrs(self):
         """\
@@ -271,15 +277,16 @@ class Table(object):
         Allows renaming the table.
         """
         self.name = table_name_new
+        self.pkey = "PRK_%s_ID" % table_name_new.lower()
         
     def __repr__(self):
         table_head = "CREATE TABLE %s(\n" % self.name
-        table_pkey = "  PRK_{0}_ID ".format(self.name).ljust(40)\
-                     + "INT PRIMARY KEY,\n"
+        table_pkey = "  {0} ".format(self.pkey).ljust(40) + "INT PRIMARY KEY,\n"
 
         if not self.value_type and not self.attrs and not self.fkeys:
             return table_head + table_pkey.rstrip(",\n") + "\n);\n"   
         
+        # Value column:
         if self.value_type:
             table_body = "\n  {0} ".format(self.value_str).ljust(41)\
                          + "%s,\n" % str(self.value_type)
@@ -287,14 +294,16 @@ class Table(object):
             table_body = "\n"
 
         table_tail = "\n);\n"
-
+        
+        # Attributes columns:
         for (attr_name, d_type) in sorted(self.attrs.items()):
             table_body += "  {0} ".format(attr_name).ljust(40)\
                           + "%s,\n" % str(d_type)
         
         if self.attrs and self.fkeys:
             table_body += "\n"
-
+        
+        # Foreign keys columns:
         for (fkey, fk_type) in sorted(self.fkeys.items()):
             table_body += "  {0} ".format(fkey).ljust(40)\
                           + "%s,\n" % str(fk_type)

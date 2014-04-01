@@ -300,6 +300,8 @@ class XMLAnalyser(object):
                 elif count > self._etc:
                     child_table = dbase.get_table(child_name)
                     child_table.set_fkey(elem.tag + "_ID")
+                elif count == 1:
+                    table.set_fkey(child_name + "_ID")
                 else:
                     for i in range(1, count + 1):
                         table.set_fkey(child_name + str(i) + "_ID")
