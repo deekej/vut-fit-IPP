@@ -162,7 +162,7 @@ class InputOutput(object):
             self._fd_input.close()
 
         if self._fd_output != sys.stdout:
-            self._fd_putput.close()
+            self._fd_output.close()
 
         if self._fd_valid != None and self._fd_valid:
             self._fd_input.close()
