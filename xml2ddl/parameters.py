@@ -65,7 +65,7 @@ the script input. The behaviour of script can be altered with parameters below.\
 This is the result of the 2nd school project @ BUT FIT, IPP course, 2014.
 
 Author:     Dee'Kej (deekej@linuxmail.org)
-Version:    0.1.0.0
+Version:    0.7.0.0
 Websites:   https://www.fit.vutbr.cz/
             https://github.com/deekej
             https://bitbucket.org/deekej"""
@@ -103,6 +103,7 @@ Websites:   https://www.fit.vutbr.cz/
         self._parser.add_argument(
             '--help',
             help='show this help message and exit',
+            dest='help_used',
             action=_HelpAction,
         )
         self._parser.add_argument(
@@ -159,7 +160,12 @@ Websites:   https://www.fit.vutbr.cz/
     def process(self):
         """Runs the parameters processing itself."""
         self.result = self._parser.parse_args()
-        
+
+        # If the help was used, there wasn't any error so far and the help page
+        # has been already printed. We can exit then:
+        if hasattr(self.result, 'help_used'):
+            sys.exit(EXIT_CODES["no_error"])
+
         # Acting same as Unix conventions require, the '-' is std{in,out}:
         if self.result.input == "-":
             self.result.input = sys.stdin
@@ -198,6 +204,7 @@ class _HelpAction(argparse._HelpAction):
         """Displays the help page when only --help parameter was used."""
         if len(sys.argv) == 2:
             parser.print_help()
+            namespace.help_used = True
         else:
             message = "argument --help is not allowed with other arguments"
             raise argparse.ArgumentError(None, message)
