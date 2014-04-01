@@ -274,14 +274,14 @@ class Table(object):
         
     def __repr__(self):
         table_head = "CREATE TABLE %s(\n" % self.name
-        table_pkey = "  PRK_{0}_ID".format(self.name).ljust(30)\
+        table_pkey = "  PRK_{0}_ID ".format(self.name).ljust(40)\
                      + "INT PRIMARY KEY,\n"
 
         if not self.value_type and not self.attrs and not self.fkeys:
             return table_head + table_pkey.rstrip(",\n") + "\n);\n"   
         
         if self.value_type:
-            table_body = "\n  {0}".format(self.value_str).ljust(31)\
+            table_body = "\n  {0} ".format(self.value_str).ljust(41)\
                          + "%s,\n" % str(self.value_type)
         else:
             table_body = "\n"
@@ -289,14 +289,14 @@ class Table(object):
         table_tail = "\n);\n"
 
         for (attr_name, d_type) in sorted(self.attrs.items()):
-            table_body += "  {0}".format(attr_name).ljust(30)\
+            table_body += "  {0} ".format(attr_name).ljust(40)\
                           + "%s,\n" % str(d_type)
         
         if self.attrs and self.fkeys:
             table_body += "\n"
 
         for (fkey, fk_type) in sorted(self.fkeys.items()):
-            table_body += "  {0}".format(fkey).ljust(30)\
+            table_body += "  {0} ".format(fkey).ljust(40)\
                           + "%s,\n" % str(fk_type)
 
         return table_head + table_pkey + table_body.rstrip(",\n") + table_tail 
