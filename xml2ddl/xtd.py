@@ -41,6 +41,7 @@ more information.
 # ========
 # Imports:
 # ========
+import os
 import sys
 from errors import EXIT_CODES
 from parameters import Parameters
