@@ -5,7 +5,7 @@
 # ============================================================================= #
 #
 # File (module): params.py
-# Version:       1.0.0.
+# Version:       1.0.0.1
 # Start date:    19-03-2014
 # Last update:   22-03-2014
 #
@@ -43,12 +43,8 @@ accessed independently via Parameters.result public attribute.
 # ========
 import argparse
 import sys
+from errors import EXIT_CODES
 
-# ==========
-# Constants:
-# ==========
-
-ERROR_PARAMS = 1
 
 # ===============
 # Public Classes:
@@ -69,7 +65,7 @@ the script input. The behaviour of script can be altered with parameters below.\
 This is the result of the 2nd school project @ BUT FIT, IPP course, 2014.
 
 Author:     Dee'Kej (deekej@linuxmail.org)
-Version:    0.1.0.0
+Version:    0.7.0.0
 Websites:   https://www.fit.vutbr.cz/
             https://github.com/deekej
             https://bitbucket.org/deekej"""
@@ -81,11 +77,15 @@ Websites:   https://www.fit.vutbr.cz/
         Tests if the given string argument represents a natural number
         (number >= 0).
         """
-        value = int(string)
-        if value >= 0:
-            return value
-        else:
-            message = "%r is not a natural number" % string
+        try:
+            value = int(string)
+            if value >= 0:
+                return value
+            else:
+                message = "%r is not a natural number" % string
+                raise argparse.ArgumentTypeError(message)
+        except ValueError:
+            message = "%r is not an integer number" % string
             raise argparse.ArgumentTypeError(message)
 
     def __init__(self):
@@ -103,6 +103,7 @@ Websites:   https://www.fit.vutbr.cz/
         self._parser.add_argument(
             '--help',
             help='show this help message and exit',
+            dest='help_used',
             action=_HelpAction,
         )
         self._parser.add_argument(
@@ -120,13 +121,14 @@ Websites:   https://www.fit.vutbr.cz/
         )
         self._parser.add_argument(
             '--isvalid',
+            dest='valid',
             metavar='filename',
             help='file for examination with the script input'
         )
         self._parser.add_argument(
             '--header',
-            metavar='string',
-            help='string that will be used as a header for output file'
+            metavar='text',
+            help='header included at top of the output'
         )
         self._parser.add_argument(
             '-a',
@@ -158,6 +160,27 @@ Websites:   https://www.fit.vutbr.cz/
     def process(self):
         """Runs the parameters processing itself."""
         self.result = self._parser.parse_args()
+
+        # If the help was used, there wasn't any error so far and the help page
+        # has been already printed. We can exit then:
+        if hasattr(self.result, 'help_used'):
+            sys.exit(EXIT_CODES["no_error"])
+
+        # Acting same as Unix conventions require, the '-' is std{in,out}:
+        if self.result.input == "-":
+            self.result.input = sys.stdin
+
+        if self.result.output == "-":
+            self.result.output = sys.stdout
+
+        if self.result.valid == "-":
+            self.result.valid = sys.stdin
+        
+        # Two different files can't be read from stdin simultaneously:
+        if self.result.valid == sys.stdin and self.result.input == sys.stdin:
+            message = "both --input and --isvalid arguments can't use stdin"
+            self._parser.error(message)
+
         return self.result
 
 
@@ -170,7 +193,8 @@ class _ArgumentParser(argparse.ArgumentParser):
     def error(self, message):
         """Exit status has been changed to '1', otherwise same as super class."""
         self.print_usage(sys.stderr)
-        self.exit(ERROR_PARAMS, ('%s: ERROR: %s\n') % (self.prog, message))
+        self.exit(EXIT_CODES["error_parameters"],
+                  ('%s: ERROR: %s\n') % (self.prog, message))
 
 
 class _HelpAction(argparse._HelpAction):
@@ -180,6 +204,7 @@ class _HelpAction(argparse._HelpAction):
         """Displays the help page when only --help parameter was used."""
         if len(sys.argv) == 2:
             parser.print_help()
+            namespace.help_used = True
         else:
             message = "argument --help is not allowed with other arguments"
             raise argparse.ArgumentError(None, message)
@@ -188,16 +213,16 @@ class _HelpAction(argparse._HelpAction):
 # ===================
 # Internal functions:
 # ===================
-def main():
+def _main():
     from pprint import pprint
     settings = Parameters().process()
     print("----------------------------------------------------")
     print("The dictionary of Parameters class with the results:")
     print("----------------------------------------------------")
     pprint(vars(settings))
-    return 0;
+    return 0
 
 if __name__ == '__main__':
-    status = main()
+    status = _main()
     sys.exit(status)
 
