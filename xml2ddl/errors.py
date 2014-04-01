@@ -49,7 +49,7 @@ EXIT_CODES = {
     "error_open_write": 3,
     "error_wrong_format": 4,
     "error_names_conflict": 90,
-    "error_different_files": 91,
+    "error_validation_fail": 91,
     "error_failed_output": 101,
     "error_keyboard_interrupt": 130,
 }
