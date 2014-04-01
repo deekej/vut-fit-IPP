@@ -128,6 +128,8 @@ class InputOutput(object):
                 self._valid_tree = XML.parse(self._fd_valid)
         except (ValueError, XML.ParseError):
             self._error(EXIT_CODES["error_wrong_format"])
+        except KeyboardInterrupt:
+            self._exit(EXIT_CODES["error_keyboard_interrupt"])
         return self._input_tree, self._valid_tree
 
     def write(self, content):

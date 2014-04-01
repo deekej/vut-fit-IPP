@@ -51,6 +51,7 @@ EXIT_CODES = {
     "error_names_conflict": 90,
     "error_different_files": 91,
     "error_failed_output": 101,
+    "error_keyboard_interrupt": 130,
 }
 
 # ===================
