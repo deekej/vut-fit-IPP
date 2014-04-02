@@ -33,7 +33,7 @@
 # Module doc-string:
 # ==================
 """\
-Provides all necessary classes (Table, TableBuilder) and theirs methods for
+Provides all necessary classes (Table, TableBuilder) and theirs methods for+č+íříéřěř
 creating internal representation of SQL tables.
 """
 
@@ -66,10 +66,10 @@ class BIT(metaclass=Singleton):
     _order = 1
 
     def __eq__(self, other):
-        return (self._order == other._order)
+        return self._order == other._order
 
     def __lt__(self, other):
-        return (self._order < other._order)
+        return self._order < other._order
 
     def __repr__(self):
         return 'BIT'
@@ -85,10 +85,10 @@ class INT(metaclass=Singleton):
     _order = 2
 
     def __eq__(self, other):
-        return (self._order == other._order)
+        return self._order == other._order
 
     def __lt__(self, other):
-        return (self._order < other._order)
+        return self._order < other._order
 
     def __repr__(self):
         return 'INT'
@@ -104,10 +104,10 @@ class FLOAT(metaclass=Singleton):
     _order = 3
 
     def __eq__(self, other):
-        return (self._order == other._order)
+        return self._order == other._order
 
     def __lt__(self, other):
-        return (self._order < other._order)
+        return self._order < other._order
 
     def __repr__(self):
         return 'FLOAT'
@@ -123,10 +123,10 @@ class NVARCHAR(metaclass=Singleton):
     _order = 4
 
     def __eq__(self, other):
-        return (self._order == other._order)
+        return self._order == other._order
 
     def __lt__(self, other):
-        return (self._order < other._order)
+        return self._order < other._order
 
     def __repr__(self):
         return 'NVARCHAR'
@@ -149,15 +149,16 @@ class NTEXT(metaclass=Singleton):
     _order = 4
 
     def __eq__(self, other):
-        return (self._order == other._order)
+        return self._order == other._order
 
     def __lt__(self, other):
-        return (self._order < other._order)
+        return self._order < other._order
 
     def __repr__(self):
         return 'NTEXT'
 
 
+@functools.total_ordering
 class Table(object):
     """\
     Container class representing one SQL table. Requires table name upon
@@ -172,6 +173,29 @@ class Table(object):
         self.pkey = "PRK_%s_ID" % table_name.lower()
         self.attrs = dict()             # Table's declarations from attributes.
         self.fkeys = dict()             # Table's foreign keys.
+
+    def __eq__(self, other):
+        return str(self) == str(other)
+
+    def __lt__(self, other):
+        if str(self) == str(other) or self.name != other.name:
+            return False
+
+        if self.value_type is not None:
+            if other.value_type is None or self.value_type > other.value_type:
+                return False
+
+        for column in self.attrs:
+            if (column not in other.attrs or
+                    self.attrs[column] > other.attrs[column]):
+                return False
+
+        for fkey in self.fkeys:
+            if (fkey not in other.fkeys or self.fkeys[fkey] >
+                    other.fkeys[fkeys]):
+                return False
+
+        return True
 
     def set_value_type(self, data_type):
         if data_type is None:
@@ -211,8 +235,8 @@ class Table(object):
         if fkey in self.fkeys:
             if self.fkeys[fkey] != data_type:
                 self.fkeys[fkey] = data_type
-        elif fkey == self.pkey.lower() or fkey == self.value_str\
-             or fkey in self.attrs:
+        elif (fkey == self.pkey.lower() or fkey == self.value_str or
+                fkey in self.attrs):
             raise NamesConflict
         else:
             self.fkeys[fkey] = data_type
@@ -278,7 +302,8 @@ class Table(object):
         """
         self.name = table_name_new
         self.pkey = "PRK_%s_ID" % table_name_new.lower()
-        
+    
+    # str() and repr() will produce the SQL output of table representation:
     def __repr__(self):
         table_head = "CREATE TABLE %s(\n" % self.name
         table_pkey = "  {0} ".format(self.pkey).ljust(40) + "INT PRIMARY KEY,\n"
@@ -288,7 +313,7 @@ class Table(object):
         
         # Value column:
         if self.value_type:
-            table_body = "\n  {0} ".format(self.value_str).ljust(41)\
+            table_body = "\n  {0} ".format(self.value_str).ljust(41) \
                          + "%s,\n" % str(self.value_type)
         else:
             table_body = "\n"
@@ -297,7 +322,7 @@ class Table(object):
         
         # Attributes columns:
         for (attr_name, d_type) in sorted(self.attrs.items()):
-            table_body += "  {0} ".format(attr_name).ljust(40)\
+            table_body += "  {0} ".format(attr_name).ljust(40) \
                           + "%s,\n" % str(d_type)
         
         if self.attrs and self.fkeys:
@@ -305,7 +330,7 @@ class Table(object):
         
         # Foreign keys columns:
         for (fkey, fk_type) in sorted(self.fkeys.items()):
-            table_body += "  {0} ".format(fkey).ljust(40)\
+            table_body += "  {0} ".format(fkey).ljust(40) \
                           + "%s,\n" % str(fk_type)
 
         return table_head + table_pkey + table_body.rstrip(",\n") + table_tail 
@@ -458,6 +483,25 @@ def _main():
     )
 
     print("------------------------\n")
+
+    table_cmp1 = database["renamed_table"]
+    table_cmp2 = database["missing_table"]
+    table_cmp3 = Table("renamed_table")
+
+    table_cmp3.set_attr("column_value", FLOAT())
+    table_cmp3.set_value_type(NTEXT())
+
+    if table_cmp1 <= table_cmp2:
+        print("different tables: YES!")
+    else:
+        print("different tables: NO!")
+
+    if table_cmp1 <= table_cmp3:
+        print("adequate tables: YES!\n")
+    else:
+        print("adequate tables: NO!\n")
+
+    print("------------------------\n")
     
     bit = BIT()
     int = INT()
@@ -476,8 +520,8 @@ def _main():
     else:
         print("Failed ordering!")
 
-    if bit != bit or int != int or float != float or nvarchar != nvarchar\
-       or ntext != ntext or nvarchar != ntext:
+    if (bit != bit or int != int or float != float or nvarchar != nvarchar or
+            ntext != ntext or nvarchar != ntext):
         print("Failed ordering!")
 
     bit2 = BIT()

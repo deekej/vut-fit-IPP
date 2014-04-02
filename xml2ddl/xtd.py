@@ -75,7 +75,7 @@ def main():
         sys.exit(EXIT_CODES["error_names_conflict"])
     except ValidationFail:
         prog = os.path.basename(sys.argv[0])
-        msg = "the input and validation files do not have the same structure"
+        msg = "database structure can't store the validation file data"
         sys.stderr.write("%s: ERROR: %s\n" % (prog, msg))
         sys.exit(EXIT_CODES["error_validation_fail"])
 
