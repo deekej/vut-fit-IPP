@@ -115,11 +115,11 @@ class XMLAnalyser(object):
         Compares the input tree generated database with the database generated
         from the validation tree and raises an exception if they're not same.
         """
-        if self._dbase.keys() != self._dbase_valid.keys():
-            raise ValidationFail
-
-        for key in self._dbase:
-            if str(self._dbase[key]) != str(self._dbase_valid[key]):
+        for table_name in self._dbase_valid.keys():
+            # We're using a property of Table class, where comparison
+            # can be used to represent, if the instance of one class is
+            # a subclass of another instance:
+            if self._dbase_valid[table_name] > self._dbase[table_name]:
                 raise ValidationFail
 
     def _classify_attr(self, string):
