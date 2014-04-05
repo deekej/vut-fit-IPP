@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 #XTD:xkaspa34
 
-# ============================================================================= #
+# ==================================================================== #
 #
 # File (module): params.py
-# Version:       0.7.0.0.
+# Version:       1.0.0.0.
 # Start date:    01-04-2014
-# Last update:   04-04-2014
+# Last update:   05-04-2014
 #
 # Course:        IPP (summer semester, 2014)
 # Project:       Script for converting XML format into DDL (SQL) format,
@@ -23,20 +23,22 @@
 #
 # Description:   See the module doc-string.
 #
-# More info @:   https://www.fit.vutbr.cz/study/courses/index.php?id=9384 
+# More info @:
+#       https://www.fit.vutbr.cz/study/courses/index.php?id=9384 
 #
 # File encoding: en_US.utf8 (United States)
 #
-# ============================================================================= #
+# ==================================================================== #
 
 # ==================
 # Module doc-string:
 # ==================
 """\
-This script converts a given XML file into a SQL commands for creating tables,
-which can hold the data stored within the input. See the help of the script for
-more information.
+This script converts a given XML file into a SQL commands for creating
+tables, which can hold the data stored within the input. See the help of
+the script for more information.
 """
+__version__ = '1.0'
 
 # ========
 # Imports:

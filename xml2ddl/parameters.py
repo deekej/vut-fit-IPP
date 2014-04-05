@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 #XTD:xkaspa34
 
-# ============================================================================= #
+# ==================================================================== #
 #
 # File (module): params.py
-# Version:       1.0.0.1
+# Version:       1.0.1.0
 # Start date:    19-03-2014
 # Last update:   22-03-2014
 #
@@ -23,20 +23,24 @@
 #
 # Description:   See the module doc-string.
 #
-# More info @:   https://www.fit.vutbr.cz/study/courses/index.php?id=9384 
+# More info @:
+#       https://www.fit.vutbr.cz/study/courses/index.php?id=9384 
 #
 # File encoding: en_US.utf8 (United States)
 #
-# ============================================================================= #
+# ==================================================================== #
 
 # ==================
 # Module doc-string:
 # ==================
 """\
-Provides the class for processing the script parameters and storing them. The
-processed parameters are returned by Parameters.process() method and can be
-accessed independently via Parameters.result public attribute.
+Provides the class for processing the script parameters and storing 
+them. The processed parameters are returned by Parameters.process() 
+method and can be accessed independently via Parameters.result public 
+attribute.
 """
+__version__ = '1.0.1'
+__all__ = ['Parameters']
 
 # ========
 # Imports:
@@ -51,8 +55,9 @@ from errors import EXIT_CODES
 # ===============
 class Parameters(object):
     """\
-    This class processes the script parameters according to project assignment
-    specifications. It is a wrapper class for argparse module usage.
+    This class processes the script parameters according to project 
+    assignment specifications. It is a wrapper class for argparse module
+    usage.
     """
 
     _help_description = """\
@@ -65,7 +70,7 @@ the script input. The behaviour of script can be altered with parameters below.\
 This is the result of the 2nd school project @ BUT FIT, IPP course, 2014.
 
 Author:     Dee'Kej (deekej@linuxmail.org)
-Version:    0.7.0.0
+Version:    1.0
 Websites:   https://www.fit.vutbr.cz/
             https://github.com/deekej
             https://bitbucket.org/deekej"""
@@ -90,8 +95,8 @@ Websites:   https://www.fit.vutbr.cz/
 
     def __init__(self):
         """\
-        Initializes this class by preparing parser arguments so it can be called
-        later with Parameters.process() method.
+        Initializes this class by preparing parser arguments so it can
+        be called later with Parameters.process() method.
         """
         self._parser = _ArgumentParser(
             description=self._help_description,
@@ -188,20 +193,28 @@ Websites:   https://www.fit.vutbr.cz/
 # Internal classes:
 # =================
 class _ArgumentParser(argparse.ArgumentParser):
-    """Subclass of ArgumentParser used for redefinition of some methods."""
-
+    """\
+    Subclass of ArgumentParser used for redefinition of some methods.
+    """
     def error(self, message):
-        """Exit status has been changed to '1', otherwise same as super class."""
+        """\
+        Exit status has been changed to '1', otherwise same as super
+        class.
+        """
         self.print_usage(sys.stderr)
         self.exit(EXIT_CODES["error_parameters"],
                   ('%s: ERROR: %s\n') % (self.prog, message))
 
 
 class _HelpAction(argparse._HelpAction):
-    """Redefined internal class from argparse so the help action doesn't exit."""
-
+    """\
+    Redefined internal class from argparse so the help action doesn't
+    exit.
+    """
     def __call__(self, parser, namespace, values, option_string):
-        """Displays the help page when only --help parameter was used."""
+        """\
+        Displays the help page when only --help parameter was used.
+        """
         if len(sys.argv) == 2:
             parser.print_help()
             namespace.help_used = True
@@ -214,6 +227,9 @@ class _HelpAction(argparse._HelpAction):
 # Internal functions:
 # ===================
 def _main():
+    """\
+    Unit-testing of the module.
+    """
     from pprint import pprint
     settings = Parameters().process()
     print("----------------------------------------------------")
@@ -223,6 +239,7 @@ def _main():
     return 0
 
 if __name__ == '__main__':
+    import sys
     status = _main()
     sys.exit(status)
 

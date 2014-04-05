@@ -24,7 +24,7 @@
 # Description:   See the module doc-string.
 #
 # More info @:
-#   https://www.fit.vutbr.cz/study/courses/index.php?id=9384 
+#       https://www.fit.vutbr.cz/study/courses/index.php?id=9384 
 #
 # File encoding: en_US.utf8 (United States)
 #
@@ -86,7 +86,14 @@ class Card_NtoM(metaclass=Singleton):
     def __repr__(self):
         return 'N:M'
 
+# ===================
+# Internal functions:
+# ===================
+def _main():
+    pass
 
 if __name__ == '__main__':
-    pass
+    import sys
+    status = _main()
+    sys.exit(status)
 

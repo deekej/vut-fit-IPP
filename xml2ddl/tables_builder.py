@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #XTD:xkaspa34
 
-# ============================================================================= #
+# ==================================================================== #
 #
 # File (module): tables_builder.py
 # Version:       1.2.0.0
@@ -23,18 +23,19 @@
 #
 # Description:   See the module doc-string.
 #
-# More info @:   https://www.fit.vutbr.cz/study/courses/index.php?id=9384 
+# More info @:
+#       https://www.fit.vutbr.cz/study/courses/index.php?id=9384 
 #
 # File encoding: en_US.utf8 (United States)
 #
-# ============================================================================= #
+# ==================================================================== #
 
 # ==================
 # Module doc-string:
 # ==================
 """\
-Provides all necessary classes (Table, TableBuilder) and theirs methods for+č+íříéřěř
-creating internal representation of SQL tables.
+Provides all necessary classes (Table, TableBuilder) and theirs methods
+for creating internal representation of SQL tables.
 """
 
 # ========
@@ -51,8 +52,8 @@ from singleton import Singleton
 # ===========
 class NamesConflict(Exception):
     """\
-    Exception for representing conflicting names of column names and names of 
-    foreign keys.
+    Exception for representing conflicting names of column names and 
+    names of foreign keys.
     """
     pass
 
@@ -62,9 +63,9 @@ class NamesConflict(Exception):
 @functools.total_ordering
 class BIT(metaclass=Singleton):
     """\
-    Class representing BIT type of SQL. Use of logical comparison operators is
-    allowed. Apply str() or repr() functions to retrieve the textual
-    representation of the type.
+    Class representing BIT type of SQL. Use of logical comparison
+    operators is allowed. Apply str() or repr() functions to retrieve
+    the textual representation of the type.
     """
     _order = 1
 
@@ -81,9 +82,9 @@ class BIT(metaclass=Singleton):
 @functools.total_ordering
 class INT(metaclass=Singleton):
     """\
-    Class representing INT type of SQL. Use of logical comparison operators is
-    allowed. Apply str() or repr() functions to retrieve the textual
-    representation of the type.
+    Class representing INT type of SQL. Use of logical comparison
+    operators is allowed. Apply str() or repr() functions to retrieve
+    the textual representation of the type.
     """
     _order = 2
 
@@ -100,9 +101,9 @@ class INT(metaclass=Singleton):
 @functools.total_ordering
 class FLOAT(metaclass=Singleton):
     """\
-    Class representing FLOAT type of SQL. Use of logical comparison operators is
-    allowed. Apply str() or repr() functions to retrieve the textual
-    representation of the type.
+    Class representing FLOAT type of SQL. Use of logical comparison
+    operators is allowed. Apply str() or repr() functions to retrieve
+    the textual representation of the type.
     """
     _order = 3
 
@@ -119,9 +120,9 @@ class FLOAT(metaclass=Singleton):
 @functools.total_ordering
 class NVARCHAR(metaclass=Singleton):
     """\
-    Class representing NVARCHAR type of SQL. Use of logical comparison operators
-    is allowed. Apply str() or repr() functions to retrieve the textual
-    representation of the type.
+    Class representing NVARCHAR type of SQL. Use of logical comparison
+    operators is allowed. Apply str() or repr() functions to retrieve
+    the textual representation of the type.
     """
     _order = 4
 
@@ -138,9 +139,9 @@ class NVARCHAR(metaclass=Singleton):
 @functools.total_ordering
 class NTEXT(metaclass=Singleton):
     """\
-    Class representing NTEXT type of SQL. Use of logical comparison operators is
-    allowed. Apply str() or repr() functions to retrieve the textual
-    representation of the type.
+    Class representing NTEXT type of SQL. Use of logical comparison
+    operators is allowed. Apply str() or repr() functions to retrieve
+    the textual representation of the type.
     """
     _order = 4
 
@@ -158,8 +159,8 @@ class NTEXT(metaclass=Singleton):
 class Table(object):
     """\
     Container class representing one SQL table. Requires table name upon
-    instantiation and using str() function on the instance returns appropriate
-    string representing the table in SQL syntax.
+    instantiation and using str() function on the instance returns
+    appropriate string representing the table in SQL syntax.
     """
     _value_str = "value"
     _value_type = None
@@ -245,12 +246,12 @@ class Table(object):
 
     def set_attr(self, attr_name, data_type):
         """\
-        Sets the column of given attribute name to a higher data type, if the
-        data type needs updating, or creates a new column for the given
-        attribute name, if it doesn't exist yet.
+        Sets the column of given attribute name to a higher data type,
+        if the data type needs updating, or creates a new column for the
+        given attribute name, if it doesn't exist yet.
 
-        In case the attribute name is value, then the data type of ._value_type
-        is updated if needed.
+        In case the attribute name is value, then the data type of
+        ._value_type is updated if needed.
         """
         name = attr_name.lower()
 
@@ -267,8 +268,9 @@ class Table(object):
 
     def set_fkey(self, foreign_key, data_type=INT()):
         """\
-        Sets the foreign key of given name to a new data type. (Default is
-        'INT'.) If the foreign key of given name doesn't exist, it is created.
+        Sets the foreign key of given name to a new data type. (Default
+        is 'INT'.) If the foreign key of given name doesn't exist, it is
+        created.
         """
         fkey = foreign_key.lower()
 
@@ -303,29 +305,30 @@ class Table(object):
 
     def rename_attr(self, attr_name, attr_name_new):
         """\
-        Renames declaration created for attribute of given name to new one.
-        Raises a KeyError in case the given name declaration does not exist.
+        Renames declaration created for attribute of given name to new
+        one. Raises a KeyError in case the given name declaration does
+        not exist.
         """
         self._attrs[attr_name_new.lower()] = self._attrs.pop(attr_name.lower())
 
     def rename_fkey(self, fkey, fkey_new):
         """\
-        Renames the foreign key of given name to new one. Raises a KeyError in
-        case the foreign key of given name does not exist.
+        Renames the foreign key of given name to new one. Raises a
+        KeyError in case the foreign key of given name does not exist.
         """
         self._fkeys[fkey_new.lower()] = self._fkeys.pop(fkey.lower())
 
     def remove_attr(self, attr_name):
         """\
-        Removes declaration created for attribute of given name. Raises a
-        KeyError in case the given name declaration does not exist.
+        Removes declaration created for attribute of given name. Raises
+        a KeyError in case the given name declaration does not exist.
         """
         del(self._attrs[attr_name.lower()])
 
     def remove_fkey(self, fkey):
         """\
-        Removes a foreign key of given name. Raises a KeyError in case the
-        foreign key of given name does not exist.
+        Removes a foreign key of given name. Raises a KeyError in case
+        the foreign key of given name does not exist.
         """
         del(self._fkeys[fkey.lower()])
 
@@ -402,9 +405,9 @@ class Table(object):
 
 class TablesBuilder(object):
     """\
-    Wrapping class for storing all Table() instances of one "database". The
-    created tables are stored inside an dictionary, which can be accessed via
-    .tables attribute.
+    Wrapping class for storing all Table() instances of one "database".
+    The created tables are stored inside an dictionary, which can be 
+    accessed via .tables attribute.
     """
     _index_act = 0
 
@@ -458,8 +461,8 @@ class TablesBuilder(object):
     # =================
     def create_table(self, table_name):
         """\
-        Creates table of given name. Raises a KeyError in case the table already
-        exists or None type was supplied as a table_name.
+        Creates table of given name. Raises a KeyError in case the table
+        already exists or None type was supplied as a table_name.
         """
         if table_name is None or table_name in self._tables:
             raise KeyError
@@ -472,9 +475,9 @@ class TablesBuilder(object):
 
     def get_table(self, table_name):
         """\
-        This method returns the table of given name from dictionary or creates
-        one, if it doesn't exists. In case None type was supplied as table_name,
-        then raises a KeyError exception.
+        This method returns the table of given name from dictionary or
+        creates one, if it doesn't exists. In case None type was
+        supplied as table_name, then raises a KeyError exception.
         """
         if table_name is not None and table_name not in self._tables:
             self.create_table(table_name)
@@ -486,8 +489,8 @@ class TablesBuilder(object):
 
     def rename_table(self, table_name, table_name_new):
         """\
-        Renames the existing table if it exists to a new name. Raises a KeyError
-        if the wrong names were supplied.
+        Renames the existing table if it exists to a new name. Raises a
+        KeyError if the wrong names were supplied.
         """
         self._tables[table_name]._rename_table(table_name_new)
         self._tables[table_name_new] = self._tables.pop(table_name)
@@ -518,8 +521,8 @@ class TablesBuilder(object):
 # ===================
 def _main():
     """\
-    Testing the combination of module defined class' methods and correctness of
-    the output.
+    Testing the combination of module defined class' methods and
+    correctness of the output.
     """
 
     table = Table("table", 0)
@@ -576,16 +579,6 @@ def _main():
     sys.stdout.write(str(database._tables["renamed_table"]) + "\n")
     sys.stdout.write(str(database.get_table("renamed_table")) + "\n")
     sys.stdout.write(str(database.get_table("missing_table")) + "\n")
-
-    print("------------------------\n")
-
-    # Trying the same (polymorphic) call as for ElementTree.write() method:
-    database.write(
-        file=sys.stdout,
-        encoding='utf-8',
-        xml_declaration=False,
-        method='xml',
-    )
 
     print("------------------------\n")
 
