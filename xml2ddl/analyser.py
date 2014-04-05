@@ -198,10 +198,13 @@ class XMLAnalyser(object):
                     attr_type = self._classify_attr(attr_value)
                     table.set_attr(attr_name, attr_type)
 
-            # Adding parents mapping and references to children:
+            # Adding relations, references and parents mapping:
             for child in list(elem):
-                self._parents_map[child] = elem
+                # Relation & reference: table -> child
+                table.set_relation(dbase.get_table(child_name))
+                table.set_reference(dbase.get_table(child_name))
                 table.set_fkey(child.tag + "_ID")
+                self._parents_map[child] = elem
 
             # If the tail is not empty, then the text of parent wasn't parsed
             # before other sub-elements were. Updating the parent if necessary:
@@ -244,8 +247,11 @@ class XMLAnalyser(object):
                 self._parents_map[child] = elem
                 self._subelem_count[child.tag] += 1
             
-            # Adding foreign keys:
+            # Adding relations, references and foreign keys:
             for (child_name, count) in self._subelem_count.items():
+                # Relation & reference: table -> child
+                table.set_relation(dbase.get_table(child_name))
+                table.set_reference(dbase.get_table(child_name))
                 if count == 1:
                     table.set_fkey(child_name + "_ID")
                 else:
@@ -293,17 +299,23 @@ class XMLAnalyser(object):
                 self._parents_map[child] = elem
                 self._subelem_count[child.tag] += 1
             
-            # Adding foreign keys:
+            # Adding relations, references and foreign keys:
             for (child_name, count) in self._subelem_count.items():
-
                 if count > self._etc:
+                    # Relation & reference: child -> table
                     child_table = dbase.get_table(child_name)
                     child_table.set_fkey(elem.tag + "_ID")
-                elif count == 1:
-                    table.set_fkey(child_name + "_ID")
+                    child_table.set_relation(table)
+                    child_table.set_reference(table)
                 else:
-                    for i in range(1, count + 1):
-                        table.set_fkey(child_name + str(i) + "_ID")
+                    # Relation & reference: table -> child
+                    table.set_relation(dbase.get_table(child_name))
+                    table.set_reference(dbase.get_table(child_name))
+                    if count == 1:
+                        table.set_fkey(child_name + "_ID")
+                    else:
+                        for i in range(1, count + 1):
+                            table.set_fkey(child_name + str(i) + "_ID")
 
             # If the tail is not empty, then the text of parent wasn't parsed
             # before other sub-elements were. Updating the parent if necessary:
@@ -311,7 +323,8 @@ class XMLAnalyser(object):
                 parent = self._parents_map[elem]
                 if parent is not None:
                     parent_table = dbase.get_table(parent.tag)
-                    parent_table.set_value_type(tail_type) 
+                    parent_table.set_value_type(tail_type)
+
 
 # ===================
 # Internal functions:
