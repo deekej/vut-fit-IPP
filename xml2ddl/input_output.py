@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 #XTD:xkaspa34
 
-# ============================================================================= #
+# ==================================================================== #
 #
 # File (module): input_output.py
-# Version:       0.4.0.0
+# Version:       1.0.0.0
 # Start date:    22-03-2014
-# Last update:   22-03-2014
+# Last update:   05-04-2014
 #
 # Course:        IPP (summer semester, 2014)
 # Project:       Script for converting XML format into DDL (SQL) format,
@@ -23,20 +23,24 @@
 #
 # Description:   See the module doc-string.
 #
-# More info @:   https://www.fit.vutbr.cz/study/courses/index.php?id=9384 
+# More info @:
+#       https://www.fit.vutbr.cz/study/courses/index.php?id=9384 
 #
 # File encoding: en_US.utf8 (United States)
 #
-# ============================================================================= #
+# ==================================================================== #
 
 # ==================
 # Module doc-string:
 # ==================
 """\
 Contains public class InputOutput as an interface for any Input/Output
-operations. It is meant to be a kind of interface for wrapping all of the
-functionality for the xtd.py script.
+operations. It is meant to be a kind of interface for wrapping all of
+the functionality for the xtd.py script.
 """
+
+__version__ = '1.0'
+__all__ = ['InputOutput']
 
 # ========
 # Imports:
@@ -46,7 +50,6 @@ import os
 import sys
 import xml.etree.ElementTree as XML
 from errors import EXIT_CODES
-
 
 # ===============
 # Public Classes:
@@ -67,17 +70,20 @@ class InputOutput(object):
 
     def __init__(self, settings):
         """\
-        Initializes the interface by opening all necessary files. It expects
-        settings to be an instance of the Parameters class (parameters.py
-        module). It also registers closing of the opened files at any exit.
+        Initializes the interface by opening all necessary files. It 
+        expects settings to be an instance of the Parameters class
+        (parameters module). It also registers closing of the opened
+        files at any exit.
         """
             
         self._xml_output = settings.g
         self._output_header = settings.header
+        
+        # Making sure the files will be closed:
+        atexit.register(self._close)
 
-        atexit.register(self._close)    # Making sure the files will be closed.
-
-        # Trying to open specified files in text mode and with UTF-8 encoding:
+        # Trying to open specified files in text mode and with UTF-8 
+        # encoding:
         if settings.input != sys.stdin:
             try:
                 self._fd_input = open(
@@ -91,7 +97,7 @@ class InputOutput(object):
 
         if settings.valid != None:
             if settings.valid == sys.stdin:
-                self._fd_valid = sys.stdin      # stdin doesn't need opening.
+                self._fd_valid = sys.stdin
             else:
                 try:
                     self._fd_valid = open(
@@ -116,8 +122,9 @@ class InputOutput(object):
 
     def read_trees(self):
         """\
-        Returns 2 ElementTree instances containing parsed XML input file and
-        validation file. It parses the files in case it has not been parsed yet.
+        Returns 2 ElementTree instances containing parsed XML input file
+        and validation file. It parses the files in case it has not been 
+        parsed yet.
         """
         if self._input_tree:
             return self._input_tree, self._valid_tree
@@ -174,9 +181,9 @@ class InputOutput(object):
 
     def _error(self, status, message=None):
         """\
-        Wrapping function for exiting upon error. It prepares the error message
-        if not specified and calls the _exit() method with specified exit status
-        code and error message.
+        Wrapping function for exiting upon error. It prepares the error 
+        message if not specified and calls the _exit() method with
+        specified exit status code and error message.
         """ 
         if message:
             self._exit(status, message)
@@ -184,16 +191,13 @@ class InputOutput(object):
             prog = os.path.basename(sys.argv[0])
             self._exit(status, ("%s: %s\n" % (prog, str(sys.exc_info()[1]))))
 
-
-# =================
-# Internal classes:
-# =================
-
-
 # ===================
 # Internal functions:
 # ===================
 def _main():
+    """\
+    Unit-testing of the module.
+    """
     from parameters import Parameters
     from pprint import pprint
 
@@ -220,6 +224,7 @@ def _main():
     return 0
 
 if __name__ == '__main__':
+    import sys
     status = _main()
     sys.exit(status)
 

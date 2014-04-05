@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #XTD:xkaspa34
 
-# ============================================================================= #
+# ==================================================================== #
 #
 # File (module): sql_keywords.py
 # Version:       1.0.0.0
@@ -23,11 +23,11 @@
 #
 # Description:   See the Singleton class doc-string.
 #
-# More info @:   https://www.fit.vutbr.cz/study/courses/index.php?id=9384 
+# More info @:
+#       https://www.fit.vutbr.cz/study/courses/index.php?id=9384 
 #
 # File encoding: en_US.utf8 (United States)
-#
-# ============================================================================= #
+# ==================================================================== #
 
 # ==================
 # Module doc-string:
@@ -519,6 +519,14 @@ SQL_keywords = [
         'ZONE'
     ]
 
-if __name__ == '__main__':
+# ===================
+# Internal Functions:
+# ===================
+def _main():
     pass
+
+if __name__ == '__main__':
+    import sys
+    status = _main()
+    sys.exit(status)
 
