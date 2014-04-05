@@ -47,7 +47,7 @@ from errors import EXIT_CODES
 from parameters import Parameters
 from input_output import InputOutput
 from tables_builder import NamesConflict
-from analyser import XMLAnalyser, ValidationFail
+from analyser import XMLAnalyser, ValidationFail, KeywordError
 from database_to_xml import DBaseToXML
 
 def main():
@@ -69,6 +69,11 @@ def main():
     # Running the analysis:
     try:
         database = analyser.run()
+    except KeywordError:
+        prog = os.path.basename(sys.argv[0])
+        msg = "reserved SQL keyword detected as an element name"
+        sys.stderr.write("%s: ERROR: %s\n" % (prog, msg))
+        sys.exit(EXIT_CODES["error_format"])
     except NamesConflict:
         prog = os.path.basename(sys.argv[0])
         msg = "collisions between attribute and element names detected"

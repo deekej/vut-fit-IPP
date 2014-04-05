@@ -42,15 +42,24 @@ input into a SQL declaration, that could hold the data in the XML input.
 # ========
 from collections import defaultdict
 
+from sql_keywords import SQL_keywords
 from tables_builder import TablesBuilder
 from tables_builder import BIT, INT, FLOAT, NVARCHAR, NTEXT
 
 # ==================
 # Exception Classes:
 # ==================
+class KeywordError(Exception):
+    """\
+    An error exception raised when the name of an element is an SQL
+    reserved word and would conflict when using the generated output.
+    """
+    pass
+
+
 class ValidationFail(Exception):
     """\
-    An error exception when the generated database structure from given
+    An error exception raised when the generated database structure from given
     validation file is not same as the database structure from input file.
     """
     pass
@@ -184,6 +193,9 @@ class XMLAnalyser(object):
 
         # Iterating over all XML elements except the root:
         for elem in tree_iter:
+            if elem.tag in SQL_keywords:
+                raise KeywordError
+
             self._columns_count.clear()         # Reseting columns counter.
             self._subelem_count.clear()         # Reseting children counter.
             table = dbase.get_table(elem.tag)   # Getting table.
@@ -228,6 +240,9 @@ class XMLAnalyser(object):
 
         # Iterating over all XML elements except the root:
         for elem in tree_iter:
+            if elem.tag in SQL_keywords:
+                raise KeywordError
+
             self._columns_count.clear()         # Reseting columns counter.
             self._subelem_count.clear()         # Reseting children counter.
             table = dbase.get_table(elem.tag)   # Getting table.
@@ -280,6 +295,9 @@ class XMLAnalyser(object):
 
         # Iterating over all XML elements except the root:
         for elem in tree_iter:
+            if elem.tag in SQL_keywords:
+                raise KeywordError
+
             self._columns_count.clear()         # Reseting columns counter.
             self._subelem_count.clear()         # Reseting children counter.
             table = dbase.get_table(elem.tag)   # Getting table.
