@@ -503,6 +503,10 @@ class TablesBuilder(object):
         self.__delitem__(table_name)
 
     def __str__(self):
+        """\
+        str() will produce a string representing the SQL representation
+        of the database.
+        """
         result = ""
         for table in self._tables.values():
             result += str(table) + "\n"

@@ -134,10 +134,9 @@ class InputOutput(object):
         return self._input_tree, self._valid_tree
 
     def write(self, database):
-        # FIXME:
         """\
-        Prints the output of given content by calling its polymorphic write
-        method. It can add a header output in case it was required.
+        Prints the database representation in requested format to given
+        file or stdout.
         """
         try:
             if self._xml_output:
