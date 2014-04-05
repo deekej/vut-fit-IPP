@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #XTD:xkaspa34
 
-# ============================================================================= #
+# ==================================================================== #
 #
 # File (module): errors.py
 # Version:       1.0.0.0
@@ -23,24 +23,27 @@
 #
 # Description:   See the module doc-string.
 #
-# More info @:   https://www.fit.vutbr.cz/study/courses/index.php?id=9384 
+# More info @:
+#       https://www.fit.vutbr.cz/study/courses/index.php?id=9384 
 #
 # File encoding: en_US.utf8 (United States)
 #
-# ============================================================================= #
+# ==================================================================== #
 
 # ==================
 # Module doc-string:
 # ==================
 """\
-Implements everything corresponding to erroneous program behaviour. For now,
-only exit codes are specified for all modules.
+Implements everything corresponding to erroneous program behaviour. For
+now, only exit codes are specified for all modules.
 """
+
+__version__ = '1.0'
+__all__ = ['EXIT_CODES']
 
 # ==========
 # Constants:
 # ==========
-
 EXIT_CODES = {
     "no_error": 0,
     "warning": 100,
@@ -61,5 +64,7 @@ def _main():
     pass
 
 if __name__ == '__main__':
-    _main()
+    import sys
+    status = _main()
+    sys.exit(status)
 

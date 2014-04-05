@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 #XTD:xkaspa34
 
-# ============================================================================= #
+# ==================================================================== #
 #
 # File (module): analyser.py
-# Version:       1.0.0.0
+# Version:       1.1.0.0
 # Start date:    29-03-2014
 # Last update:   01-04-2014
 #
@@ -23,35 +23,54 @@
 #
 # Description:   See the module doc-string.
 #
-# More info @:   https://www.fit.vutbr.cz/study/courses/index.php?id=9384 
+# More info @:
+#       https://www.fit.vutbr.cz/study/courses/index.php?id=9384 
 #
 # File encoding: en_US.utf8 (United States)
 #
-# ============================================================================= #
+# ==================================================================== #
 
 # ==================
 # Module Doc-string:
 # ==================
 """\
-This module provides a XMLAnalyser class for analysis and conversion of XML
-input into a SQL declaration, that could hold the data in the XML input.
+This module provides a XMLAnalyser class for analysis and conversion of
+XML input into a SQL declaration, that could hold the data in the XML
+input.
 """
+
+__version__ = '1.1'
+__all__ = [
+    'KeywordError',
+    'ValidationError',
+    'XMLAnalyser',
+]
 
 # ========
 # Imports:
 # ========
 from collections import defaultdict
 
+from sql_keywords import SQL_keywords
 from tables_builder import TablesBuilder
 from tables_builder import BIT, INT, FLOAT, NVARCHAR, NTEXT
 
 # ==================
 # Exception Classes:
 # ==================
+class KeywordError(Exception):
+    """\
+    An error exception raised when the name of an element is an SQL
+    reserved word and would conflict when using the generated output.
+    """
+    pass
+
+
 class ValidationFail(Exception):
     """\
-    An error exception when the generated database structure from given
-    validation file is not same as the database structure from input file.
+    An error exception raised when the generated database structure from
+    given validation file is not same as the database structure from
+    input file.
     """
     pass
 
@@ -60,12 +79,14 @@ class ValidationFail(Exception):
 # ===============
 class XMLAnalyser(object):
     """\
-    Class for analyzing parsed XML document and transforming it into SQL format,
-    which could hold the data contained in the XML document. It expects analysis
-    settings and parsed XML as a ElementTree instance on initialization.
+    Class for analyzing parsed XML document and transforming it into SQL
+    format, which could hold the data contained in the XML document. It
+    expects analysis settings and parsed XML as a ElementTree instance
+    on initialization.
     
-    Second optional ElementTree instance can be supplied to request to compare
-    the generated SQL declarations of both ElementTree instances.
+    Second optional ElementTree instance can be supplied to request to
+    compare the generated SQL declarations of both ElementTree
+    instances.
     """
     _BIT_list = ['0', '1', 'true', 'false']
     _parents_map = dict()
@@ -88,8 +109,8 @@ class XMLAnalyser(object):
 
     def get_result(self):
         """\
-        Returns the result of previous run or None if the analyser has not been
-        run yet.
+        Returns the result of previous run or None if the analyser has
+        not been run yet.
         """
         if self._dbase:
             return self._dbase
@@ -98,9 +119,11 @@ class XMLAnalyser(object):
 
     def run(self):
         """\
-        Runs the XML analysis and database generator. If validation tree was
-        supplied, then this method analysis it too and compares the databases.
-        It raises an NotIdentical exception if they are not the same.
+        Runs the XML analysis and database generator. If validation tree
+        was supplied, then this method analysis it too and compares the
+        databases. It raises an ValidationFail exception if they are not
+        the same. It also raises an KeywordError exception if the
+        processed XML element name would conflict with SQL output.;
         """
         self._run(self._input_tree, self._dbase)
 
@@ -112,8 +135,9 @@ class XMLAnalyser(object):
 
     def _compare(self):
         """\
-        Compares the input tree generated database with the database generated
-        from the validation tree and raises an exception if they're not same.
+        Compares the input tree generated database with the database
+        generated from the validation tree and raises an exception if
+        they're not same.
         """
         for table_name in self._dbase_valid.keys():
             # We're using a property of Table class, where comparison
@@ -171,12 +195,12 @@ class XMLAnalyser(object):
 
     def _run_b(self, tree, dbase):
         """\
-        Variation of default analysis method. It takes in context only one
-        sub-element with the highest data type, if there are more than one with
-        the same name.
+        Variation of default analysis method. It takes in context only
+        one sub-element with the highest data type, if there are more
+        than one with the same name.
         """
-        tree_iter = tree.iter()                 # Getting the XML tree iterator.
-        next(tree_iter)                         # Skipping the root element.
+        tree_iter = tree.iter()         # Getting the XML tree iterator.
+        next(tree_iter)                 # Skipping the root element.
         
         # Parents mapping initialization:
         for elem in list(tree.getroot()):
@@ -184,27 +208,34 @@ class XMLAnalyser(object):
 
         # Iterating over all XML elements except the root:
         for elem in tree_iter:
-            self._columns_count.clear()         # Reseting columns counter.
-            self._subelem_count.clear()         # Reseting children counter.
+            if elem.tag in SQL_keywords:
+                raise KeywordError
+
+            self._columns_count.clear()     # Reseting columns counter.
+            self._subelem_count.clear()     # Reseting children counter.
             table = dbase.get_table(elem.tag)   # Getting table.
 
             text_type = self._classify_cont(elem.text)
             tail_type = self._classify_cont(elem.tail)
 
-            table.set_value_type(text_type)     # Setting actual value type.
+            table.set_value_type(text_type) # Setting actual value type.
            
             if not self._ignore_attr: 
                 for (attr_name, attr_value) in elem.attrib.items():
                     attr_type = self._classify_attr(attr_value)
                     table.set_attr(attr_name, attr_type)
 
-            # Adding parents mapping and references to children:
+            # Adding relations, references and parents mapping:
             for child in list(elem):
-                self._parents_map[child] = elem
+                # Relation & reference: table -> child
+                table.set_relation(dbase.get_table(child_name))
+                table.set_reference(dbase.get_table(child_name))
                 table.set_fkey(child.tag + "_ID")
+                self._parents_map[child] = elem
 
-            # If the tail is not empty, then the text of parent wasn't parsed
-            # before other sub-elements were. Updating the parent if necessary:
+            # If the tail is not empty, then the text of parent wasn't
+            # parsed before other sub-elements were. Updating the parent
+            # if necessary:
             if tail_type:
                 parent = self._parents_map[elem]
                 if parent is not None:
@@ -213,11 +244,11 @@ class XMLAnalyser(object):
 
     def _run_default(self, tree, dbase):
         """\
-        Default analysis method, where the .etc setting option is considered
-        infinite.
+        Default analysis method, where the .etc setting option is
+        considered infinite.
         """
-        tree_iter = tree.iter()                 # Getting the XML tree iterator.
-        next(tree_iter)                         # Skipping the root element.
+        tree_iter = tree.iter()         # Getting the XML tree iterator.
+        next(tree_iter)                 # Skipping the root element.
         
         # Parents mapping initialization:
         for elem in list(tree.getroot()):
@@ -225,35 +256,43 @@ class XMLAnalyser(object):
 
         # Iterating over all XML elements except the root:
         for elem in tree_iter:
-            self._columns_count.clear()         # Reseting columns counter.
-            self._subelem_count.clear()         # Reseting children counter.
+            if elem.tag in SQL_keywords:
+                raise KeywordError
+
+            self._columns_count.clear()     # Reseting columns counter.
+            self._subelem_count.clear()     # Reseting children counter.
             table = dbase.get_table(elem.tag)   # Getting table.
 
             text_type = self._classify_cont(elem.text)
             tail_type = self._classify_cont(elem.tail)
 
-            table.set_value_type(text_type)     # Setting actual value type.
+            table.set_value_type(text_type) # Setting actual value type.
            
             if not self._ignore_attr:
                 for (attr_name, attr_value) in elem.attrib.items():
                     attr_type = self._classify_attr(attr_value)
                     table.set_attr(attr_name, attr_type)
 
-            # Adding parents mapping and counting occurrences of sub-elements:
+            # Adding parents mapping and counting occurrences of
+            # sub-elements:
             for child in list(elem):
                 self._parents_map[child] = elem
                 self._subelem_count[child.tag] += 1
             
-            # Adding foreign keys:
+            # Adding relations, references and foreign keys:
             for (child_name, count) in self._subelem_count.items():
+                # Relation & reference: table -> child
+                table.set_relation(dbase.get_table(child_name))
+                table.set_reference(dbase.get_table(child_name))
                 if count == 1:
                     table.set_fkey(child_name + "_ID")
                 else:
                     for i in range(1, count + 1):
                         table.set_fkey(child_name + str(i) + "_ID")
 
-            # If the tail is not empty, then the text of parent wasn't parsed
-            # before other sub-elements were. Updating the parent if necessary:
+            # If the tail is not empty, then the text of parent wasn't
+            # parsed before other sub-elements were. Updating the parent
+            # if necessary:
             if tail_type:
                 parent = self._parents_map[elem]
                 if parent is not None:
@@ -265,8 +304,8 @@ class XMLAnalyser(object):
         Variation of default analysis method. The .etc setting option is
         limited and therefore the SQL generation is changed.
         """
-        tree_iter = tree.iter()                 # Getting the XML tree iterator.
-        next(tree_iter)                         # Skipping the root element.
+        tree_iter = tree.iter()         # Getting the XML tree iterator.
+        next(tree_iter)                 # Skipping the root element.
         
         # Parents mapping initialization:
         for elem in list(tree.getroot()):
@@ -274,52 +313,64 @@ class XMLAnalyser(object):
 
         # Iterating over all XML elements except the root:
         for elem in tree_iter:
-            self._columns_count.clear()         # Reseting columns counter.
-            self._subelem_count.clear()         # Reseting children counter.
+            if elem.tag in SQL_keywords:
+                raise KeywordError
+
+            self._columns_count.clear()     # Reseting columns counter.
+            self._subelem_count.clear()     # Reseting children counter.
             table = dbase.get_table(elem.tag)   # Getting table.
 
             text_type = self._classify_cont(elem.text)
             tail_type = self._classify_cont(elem.tail)
 
-            table.set_value_type(text_type)     # Setting actual value type.
+            table.set_value_type(text_type) # Setting actual value type.
            
             if not self._ignore_attr: 
                 for (attr_name, attr_value) in elem.attrib.items():
                     attr_type = self._classify_attr(attr_value)
                     table.set_attr(attr_name, attr_type)
 
-            # Adding parents mapping and counting occurrences of sub-elements:
+            # Adding parents mapping and counting occurrences of
+            # sub-elements:
             for child in list(elem):
                 self._parents_map[child] = elem
                 self._subelem_count[child.tag] += 1
             
-            # Adding foreign keys:
+            # Adding relations, references and foreign keys:
             for (child_name, count) in self._subelem_count.items():
-
                 if count > self._etc:
+                    # Relation & reference: child -> table
                     child_table = dbase.get_table(child_name)
                     child_table.set_fkey(elem.tag + "_ID")
-                elif count == 1:
-                    table.set_fkey(child_name + "_ID")
+                    child_table.set_relation(table)
+                    child_table.set_reference(table)
                 else:
-                    for i in range(1, count + 1):
-                        table.set_fkey(child_name + str(i) + "_ID")
+                    # Relation & reference: table -> child
+                    table.set_relation(dbase.get_table(child_name))
+                    table.set_reference(dbase.get_table(child_name))
+                    if count == 1:
+                        table.set_fkey(child_name + "_ID")
+                    else:
+                        for i in range(1, count + 1):
+                            table.set_fkey(child_name + str(i) + "_ID")
 
-            # If the tail is not empty, then the text of parent wasn't parsed
-            # before other sub-elements were. Updating the parent if necessary:
+            # If the tail is not empty, then the text of parent wasn't
+            # parsed before other sub-elements were. Updating the parent
+            # if necessary:
             if tail_type:
                 parent = self._parents_map[elem]
                 if parent is not None:
                     parent_table = dbase.get_table(parent.tag)
-                    parent_table.set_value_type(tail_type) 
+                    parent_table.set_value_type(tail_type)
+
 
 # ===================
 # Internal functions:
 # ===================
 def _main():
     """\
-    Unit-testing function. It is using previously build modules as a necessary
-    wrapping.
+    Unit-testing function. It is using previously build modules as a
+    necessary wrapping.
     """
     from parameters import Parameters
     from input_output import InputOutput

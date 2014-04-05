@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 #XTD:xkaspa34
 
-# ============================================================================= #
+# ==================================================================== #
 #
 # File (module): tables_builder.py
-# Version:       1.2.0.0
+# Version:       1.0.0.0
 # Start date:    23-03-2014
 # Last update:   01-04-2014
 #
@@ -23,19 +23,23 @@
 #
 # Description:   See the Singleton class doc-string.
 #
-# More info @:   https://www.fit.vutbr.cz/study/courses/index.php?id=9384 
+# More info @:
+#       https://www.fit.vutbr.cz/study/courses/index.php?id=9384 
 #
 # File encoding: en_US.utf8 (United States)
 #
-# ============================================================================= #
+# ==================================================================== #
+
+__version__ = '1.0'
+__all__ = ['Singleton']
 
 # ===============
 # Public Classes:
 # ===============
 class Singleton(type):
     """\
-    Singleton meta-class implementation so it can be used in other modules for
-    creating Singletons easily.
+    Singleton meta-class implementation so it can be used in other
+    modules for creating Singletons easily.
     """
     _instances = dict()
 
@@ -44,7 +48,14 @@ class Singleton(type):
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
 
+# ===================
+# Internal Functions:
+# ===================
+def _main():
+    pass
 
 if __name__ == '__main__':
-    pass
+    import sys
+    status = _main()
+    sys.exit(status)
 
