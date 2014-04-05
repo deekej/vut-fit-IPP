@@ -62,7 +62,8 @@ class InputOutput(object):
     # Initial values of parsed XML trees.
     _input_tree = None
     _valid_tree = None
-    # _output_tree = None # NOTE: _output_tree will be probably used later.
+
+    _XML_declaration = """<?xml version="1.0" encoding="UTF-8" ?>\n"""
 
     def __init__(self, settings):
         """\
@@ -132,27 +133,26 @@ class InputOutput(object):
             self._exit(EXIT_CODES["error_keyboard_interrupt"])
         return self._input_tree, self._valid_tree
 
-    def write(self, content):
+    def write(self, database):
+        # FIXME:
         """\
         Prints the output of given content by calling its polymorphic write
         method. It can add a header output in case it was required.
         """
         try:
-            if self._output_header:
-                if self._xml_output:
-                    # Adding header as a comment into ElementTree object, which
-                    # will be printed below:
-                    pass                    # TODO: Adding XML comment later.
-                else:
-                    # Printing header in required format.
+            if self._xml_output:
+                self._fd_output.write(self._XML_declaration)
+
+                if self._output_header:
+                    self._fd_output.write("<!--%s-->\n" % self._output_header)
+
+                string = XML.tostring(database.xml_repr.getroot(), "unicode")
+                self._fd_output.write(str(string))
+            else:
+                if self._output_header:
                     self._fd_output.write("--%s\n\n" % self._output_header)
 
-            content.write(
-                file=self._fd_output,
-                encoding='utf-8',
-                xml_declaration=False,      # NOTE: Might change.
-                method='xml',               # NOTE: Might change.
-            )
+                self._fd_output.write(str(database))
         except IOError:
             self._error(EXIT_CODES["error_failed_output"])
 
