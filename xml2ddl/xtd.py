@@ -48,6 +48,7 @@ from parameters import Parameters
 from input_output import InputOutput
 from tables_builder import NamesConflict
 from analyser import XMLAnalyser, ValidationFail
+from database_to_xml import DBaseToXML
 
 def main():
     """\
@@ -67,7 +68,7 @@ def main():
 
     # Running the analysis:
     try:
-        result = analyser.run()
+        database = analyser.run()
     except NamesConflict:
         prog = os.path.basename(sys.argv[0])
         msg = "collisions between attribute and element names detected"
@@ -82,10 +83,9 @@ def main():
     # Converting the result of analysis to another XML representation if
     # requested:
     if settings.g:
-        pass                            # TODO: Not implemented yet.
-    else:
-        interface.write(result)
+        DBaseToXML(database).run()
 
+    interface.write(database)
     return EXIT_CODES["no_error"]
 
 if __name__ == '__main__':

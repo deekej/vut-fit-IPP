@@ -41,6 +41,9 @@ creating internal representation of SQL tables.
 # Imports:
 # ========
 import functools
+from collections import defaultdict
+
+from cardinality import *
 from singleton import Singleton
 
 # ===========
@@ -136,13 +139,6 @@ class NVARCHAR(metaclass=Singleton):
 class NTEXT(metaclass=Singleton):
     """\
     Class representing NTEXT type of SQL. Use of logical comparison operators is
-        Adds one column of given name and data type into the table. In case the
-        given name would conflict with already existing foreign key, the
-        NamesConflict exception is raised. If the column already exists this
-        method raises a KeyError exception.
-        
-        If you want to change the data type without raising an exception, use
-        the update() method.
     allowed. Apply str() or repr() functions to retrieve the textual
     representation of the type.
     """
@@ -165,43 +161,87 @@ class Table(object):
     instantiation and using str() function on the instance returns appropriate
     string representing the table in SQL syntax.
     """
-    value_str = "value"
-    value_type = None
+    _value_str = "value"
+    _value_type = None
+    
+    # Allowed data types of cardinality:
+    _cardinality = [
+        None,
+        Card_None(),
+        Card_1to1(),
+        Card_1toN(),
+        Card_Nto1(),
+        Card_NtoM(),
+    ]
 
-    def __init__(self, table_name):
+    def __init__(self, table_name, index):
         self.name = table_name.lower()
-        self.pkey = "PRK_%s_ID" % table_name.lower()
-        self.attrs = dict()             # Table's declarations from attributes.
-        self.fkeys = dict()             # Table's foreign keys.
+        self.index = index      # Table's index for the WFI algorithm.
 
+        self.references = []    # Database references from table.
+        self.relations = defaultdict(None) # Relations to other tables.
+
+        self._pkey = "PRK_%s_ID" % table_name.lower()
+        self._attrs = dict()    # Table's declarations from attributes.
+        self._fkeys = dict()    # Table's foreign keys.
+
+    def __hash__(self):
+        """\
+        The index value and table name is used for the hash combined
+        with logical XOR. Index value should always be unique and the
+        self.name should be changed only when the table is renamed. If
+        that happens, the new instance of the same values, but different
+        name is created and the old one is deleted. If properly used,
+        there shouldn't arise any collision.
+        """
+        return hash(self.index) ^ hash(self.name)   # TODO: TEST ME!
+
+    # Comparison for SQL tables equality (==) used by decorator:
     def __eq__(self, other):
+        """\
+        Comparison for SQL tables equality (==) used by class decorator.
+        """
         return str(self) == str(other)
 
+    
     def __lt__(self, other):
+        """\
+        Comparison for SQL tables membership (<) used by class
+        decorator. It represents that current table has less
+        declarations than the 'other' table.
+        """
+        # Equality is tested in method above; names must be same though:
         if str(self) == str(other) or self.name != other.name:
             return False
-
-        if self.value_type is not None:
-            if other.value_type is None or self.value_type > other.value_type:
+        
+        # Value type testing:
+        if self._value_type is not None:
+            if (other._value_type is None or
+                    self._value_type > other._value_type):
+                return False
+        
+        # Attributes columns presence and type testing:
+        for column in self._attrs:
+            if (column not in other._attrs or
+                    self._attrs[column] > other._attrs[column]):
                 return False
 
-        for column in self.attrs:
-            if (column not in other.attrs or
-                    self.attrs[column] > other.attrs[column]):
+        # Foreign keys presence and type testing:
+        for fkey in self._fkeys:
+            if (fkey not in other._fkeys or self._fkeys[fkey] >
+                    other._fkeys[fkey]):
                 return False
 
-        for fkey in self.fkeys:
-            if (fkey not in other.fkeys or self.fkeys[fkey] >
-                    other.fkeys[fkeys]):
-                return False
-
-        return True
+        return True    # This table is a sub-table of the 'other' table.
 
     def set_value_type(self, data_type):
+        """\
+        Sets current type of column 'value', if it has higher data type.
+        """
         if data_type is None:
             pass
-        elif self.value_type is None or self.value_type < data_type:
-            self.value_type = data_type
+        elif self._value_type is None or self._value_type < data_type:
+            self._value_type = data_type
 
     def set_attr(self, attr_name, data_type):
         """\
@@ -209,21 +249,21 @@ class Table(object):
         data type needs updating, or creates a new column for the given
         attribute name, if it doesn't exist yet.
 
-        In case the attribute name is value, then the data type of .value_type
+        In case the attribute name is value, then the data type of ._value_type
         is updated if needed.
         """
         name = attr_name.lower()
 
-        if name in self.attrs:
-            if self.attrs[name] < data_type:
-                self.attrs[name] = data_type 
-        elif name in self.fkeys or name == self.pkey.lower():
+        if name in self._attrs:
+            if self._attrs[name] < data_type:
+                self._attrs[name] = data_type 
+        elif name in self._fkeys or name == self._pkey.lower():
             raise NamesConflict
-        elif name == self.value_str:
-            if self.value_type is None or self.value_type < data_type:
-                self.value_type = data_type
+        elif name == self._value_str:
+            if self._value_type is None or self._value_type < data_type:
+                self._value_type = data_type
         else:
-            self.attrs[name] = data_type
+            self._attrs[name] = data_type
 
     def set_fkey(self, foreign_key, data_type=INT()):
         """\
@@ -232,108 +272,132 @@ class Table(object):
         """
         fkey = foreign_key.lower()
 
-        if fkey in self.fkeys:
-            if self.fkeys[fkey] != data_type:
-                self.fkeys[fkey] = data_type
-        elif (fkey == self.pkey.lower() or fkey == self.value_str or
-                fkey in self.attrs):
+        if fkey in self._fkeys:
+            if self._fkeys[fkey] != data_type:
+                self._fkeys[fkey] = data_type
+        elif (fkey == self._pkey.lower() or fkey == self._value_str or
+                fkey in self._attrs):
             raise NamesConflict
         else:
-            self.fkeys[fkey] = data_type
+            self._fkeys[fkey] = data_type
+
+    def set_reference(self, table):
+        """\
+        Sets the reference from current to other table.
+        """
+        if table not in self.references:
+            self.references.append(table)
+
+    def set_relation(self, table, rel_card=None):
+        """\
+        Sets the relation from current to other table. Optional argument
+        can be supplied to set the relation's cardinality.
+
+        In case the optional argument has not valid cardinality, the
+        TypeError exception is raised.
+        """
+        if rel_card in self._cardinality:
+            self.relations[table] = rel_card
+        else:
+            raise TypeError
 
     def rename_attr(self, attr_name, attr_name_new):
         """\
         Renames declaration created for attribute of given name to new one.
         Raises a KeyError in case the given name declaration does not exist.
         """
-        self.attrs[attr_name_new.lower()] = self.attrs.pop(attr_name.lower())
+        self._attrs[attr_name_new.lower()] = self._attrs.pop(attr_name.lower())
 
     def rename_fkey(self, fkey, fkey_new):
         """\
         Renames the foreign key of given name to new one. Raises a KeyError in
         case the foreign key of given name does not exist.
         """
-        self.fkeys[fkey_new.lower()] = self.fkeys.pop(fkey.lower())
+        self._fkeys[fkey_new.lower()] = self._fkeys.pop(fkey.lower())
 
     def remove_attr(self, attr_name):
         """\
         Removes declaration created for attribute of given name. Raises a
         KeyError in case the given name declaration does not exist.
         """
-        del(self.attrs[attr_name.lower()])
+        del(self._attrs[attr_name.lower()])
 
     def remove_fkey(self, fkey):
         """\
         Removes a foreign key of given name. Raises a KeyError in case the
         foreign key of given name does not exist.
         """
-        del(self.fkeys[fkey.lower()])
+        del(self._fkeys[fkey.lower()])
 
     def reset_attrs(self):
         """\
         Removes all declarations created from attributes.
         """
-        self.attrs.clear()
+        self._attrs.clear()
 
     def reset_fkeys(self):
         """\
         Removes all foreign keys.
         """
-        self.fkeys.clear()
+        self._fkeys.clear()
 
     def reset_value_type(self):
         """\
         Resets the type of 'value' column.
         """
-        self.value_type = None
+        self._value_type = None
 
     def reset_all(self):
         """\
         Resets the table into state identical to when the table was
         instantiated.
         """
-        self.attrs.clear()
-        self.fkeys.clear()
-        self.value_type = None
+        self._attrs.clear()
+        self._fkeys.clear()
+        self._value_type = None
 
     def _rename_table(self, table_name_new):
         """\
         Allows renaming the table.
         """
         self.name = table_name_new
-        self.pkey = "PRK_%s_ID" % table_name_new.lower()
+        self._pkey = "PRK_%s_ID" % table_name_new.lower()
     
-    # str() and repr() will produce the SQL output of table representation:
-    def __repr__(self):
+    # str() can produce string of table's SQL representation:
+    def __str__(self):
         table_head = "CREATE TABLE %s(\n" % self.name
-        table_pkey = "  {0} ".format(self.pkey).ljust(40) + "INT PRIMARY KEY,\n"
+        table_pkey = "  {0} ".format(self._pkey).ljust(40) + "INT PRIMARY KEY,\n"
 
-        if not self.value_type and not self.attrs and not self.fkeys:
+        if not self._value_type and not self._attrs and not self._fkeys:
             return table_head + table_pkey.rstrip(",\n") + "\n);\n"   
         
         # Value column:
-        if self.value_type:
-            table_body = "\n  {0} ".format(self.value_str).ljust(41) \
-                         + "%s,\n" % str(self.value_type)
+        if self._value_type:
+            table_body = "\n  {0} ".format(self._value_str).ljust(41) \
+                         + "%s,\n" % str(self._value_type)
         else:
             table_body = "\n"
 
         table_tail = "\n);\n"
         
         # Attributes columns:
-        for (attr_name, d_type) in sorted(self.attrs.items()):
+        for (attr_name, d_type) in sorted(self._attrs.items()):
             table_body += "  {0} ".format(attr_name).ljust(40) \
                           + "%s,\n" % str(d_type)
         
-        if self.attrs and self.fkeys:
+        if self._attrs and self._fkeys:
             table_body += "\n"
         
         # Foreign keys columns:
-        for (fkey, fk_type) in sorted(self.fkeys.items()):
+        for (fkey, fk_type) in sorted(self._fkeys.items()):
             table_body += "  {0} ".format(fkey).ljust(40) \
                           + "%s,\n" % str(fk_type)
 
-        return table_head + table_pkey + table_body.rstrip(",\n") + table_tail 
+        return table_head + table_pkey + table_body.rstrip(",\n") + table_tail
+    
+    # For internal use only:
+    def __repr__(self):
+        return "TABLE: %s (index: %d)" % (self.name, self.index)
 
 
 class TablesBuilder(object):
@@ -342,36 +406,35 @@ class TablesBuilder(object):
     created tables are stored inside an dictionary, which can be accessed via
     .tables attribute.
     """
+    _index_act = 0
+
     def __init__(self):
         self._tables = dict()
+        self._index_mapping = defaultdict(None)
+        self.xml_repr = None
 
-    def __iter__(self):
-        return iter(self._tables)
+    def __len__(self):
+        return len(self._tables)
+
+    def __contains__(self, item):
+        return item in self._tables
 
     def __getitem__(self, item):
         return self._tables[item]
+
+    def __iter__(self):
+        return iter(self._tables)
     
-    def create_table(self, table_name):
-        """\
-        Creates table of given name. Raises a KeyError in case the table already
-        exists or None type was supplied as a table_name.
-        """
-        if table_name is None or table_name in self._tables:
-            raise KeyError
-        else:
-            self._tables[table_name] = Table(table_name)
-            return self._tables[table_name]
+    def __delitem__(self, table_name):
+        # Removes table of given name and removes it from the
+        # table->tables mapping.
+        table_index = self._tables[table_name].index
+        del self._index_mapping[table_index]
+        del self._tables[table_name]
 
-    def get_table(self, table_name):
-        """\
-        This method returns the table of given name from dictionary or creates
-        one, if it doesn't exists. In case None type was supplied as table_name,
-        then raises a KeyError exception.
-        """
-        if table_name is not None and table_name not in self._tables:
-            self._tables[table_name] = Table(table_name)
-        return self._tables[table_name]
-
+    # ====================
+    # Polymorphic methods:
+    # ====================
     def items(self):
         """\
         Wrapping method for returning content of tables dictionary.
@@ -383,6 +446,43 @@ class TablesBuilder(object):
         Wrapping method for returning the dictionary keys.
         """
         return self._tables.keys()
+    
+    def values(self):
+        """\
+        Wrapping method for returning a view on the database's tables.
+        """
+        return self._tables.values()
+
+    # =================
+    # Standard methods:
+    # =================
+    def create_table(self, table_name):
+        """\
+        Creates table of given name. Raises a KeyError in case the table already
+        exists or None type was supplied as a table_name.
+        """
+        if table_name is None or table_name in self._tables:
+            raise KeyError
+        else:
+            table = Table(table_name, self._index_act)
+            self._tables[table_name] = table
+            self._index_mapping[self._index_act] = table
+            self._index_act += 1
+            return table
+
+    def get_table(self, table_name):
+        """\
+        This method returns the table of given name from dictionary or creates
+        one, if it doesn't exists. In case None type was supplied as table_name,
+        then raises a KeyError exception.
+        """
+        if table_name is not None and table_name not in self._tables:
+            self.create_table(table_name)
+        return self._tables[table_name]
+
+    def get_mapping(self):
+        """Doc-string.""" # FIXME
+        return self._index_mapping
 
     def rename_table(self, table_name, table_name_new):
         """\
@@ -394,19 +494,24 @@ class TablesBuilder(object):
 
     def remove_table(self, table_name):
         """\
-        Removes table of given name completely. Raises a KeyError if the table
-        doesn't exist.
-        """
-        del self._tables[table_name]
+        Removes table of given name completely. Raises a KeyError if the
+        table doesn't exist.
 
-    def write(self, file, encoding='us-ascii', xml_declaration=None,
-              method='xml'):
-        """\
-        Polymorphic method as ElementTree.write() method. Prints the content of
-        tables in dictionary and separates them with empty line.
+        WARNING: Be aware of removing tables, because some other tables'
+        references or relations might be still referencing the table.
         """
-        for (table_name, table) in sorted(self._tables.items()):
-            file.write(str(table) + "\n")
+        self.__delitem__(table_name)
+
+    def __str__(self):
+        """\
+        str() will produce a string representing the SQL representation
+        of the database.
+        """
+        result = ""
+        for table in self._tables.values():
+            result += str(table) + "\n"
+
+        return result
 
 # ===================
 # Internal functions:
@@ -417,7 +522,7 @@ def _main():
     the output.
     """
 
-    table = Table("table")
+    table = Table("table", 0)
     table.set_value_type(None)
     table.set_attr("value1", BIT())
     table.set_attr("value2", NVARCHAR())
@@ -486,7 +591,7 @@ def _main():
 
     table_cmp1 = database["renamed_table"]
     table_cmp2 = database["missing_table"]
-    table_cmp3 = Table("renamed_table")
+    table_cmp3 = Table("renamed_table", 1)
 
     table_cmp3.set_attr("column_value", FLOAT())
     table_cmp3.set_value_type(NTEXT())
