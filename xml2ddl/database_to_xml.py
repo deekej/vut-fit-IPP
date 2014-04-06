@@ -95,7 +95,7 @@ class DBaseToXML(object):
         cardinality of the relations to 1:1.
         """
         for table in self._dbase.values():
-            table.set_relation(table, Card_1to1())
+            table.set_relation(table)
 
     def _symmetric_closure(self):
         """\
@@ -104,6 +104,22 @@ class DBaseToXML(object):
         for table in self._dbase.values():
             for dest_table in table.relations:
                 dest_table.set_relation(table)
+
+    def _transitive_closure(self):
+        """\
+        Creates a symmetric closure of database based on the result of
+        previous Floyd-Warshall's algorithm run.
+        """
+        for i in range(0, self._matr_size):
+            table = self._mapping[i]
+            for j in range(0, self._matr_size):
+                dist = self._dist[i][j]
+                if dist > 1 and dist != float('inf'):
+                    table.set_relation(self._mapping[j])
+
+                    # We're finding the max distance also:
+                    if dist > self._max_dist:
+                        self._max_dist = dist
 
     def _dist_init(self):
         """\
@@ -138,22 +154,6 @@ class DBaseToXML(object):
                     if self._dist[i][k] + self._dist[k][j] < self._dist[i][j]:
                         self._dist[i][j] = self._dist[i][k] + self._dist[k][j]
                         self._next[i][j] = self._next[k][j]
-
-    def _transitive_closure(self):
-        """\
-        Creates a symmetric closure of database based on the result of
-        previous Floyd-Warshall's algorithm run.
-        """
-        for i in range(0, self._matr_size):
-            table = self._mapping[i]
-            for j in range(0, self._matr_size):
-                dist = self._dist[i][j]
-                if dist > 1 and dist != float('inf'):
-                    table.set_relation(self._mapping[j])
-
-                    # We're finding the max distance also:
-                    if dist > self._max_dist:
-                        self._max_dist = dist
 
     def _sort_relations(self):
         """\
@@ -202,8 +202,10 @@ class DBaseToXML(object):
         """
         if table_C == None:
             # We're using initial references to add the initial
-            # cardinality (of symmetric closure relations):
-            if (table_B in table_A.references and 
+            # cardinality (of reflexive or symmetric closure relations):
+            if table_A == table_B:
+                table_A.set_relation(table_A, Card_1to1())
+            elif (table_B in table_A.references and 
                     table_A in table_B.references):
                 table_A.set_relation(table_B, Card_NtoM())
             elif table_B in table_A.references:
@@ -227,6 +229,10 @@ class DBaseToXML(object):
         """\
         Adds cardinality to symmetric and transitive relations.
         """
+        # Reflexive closure:
+        for (table_A, table_B) in self._rel_sorted[0]:
+            self._set_cardinality(table_A, table_B)
+
         # Symmetric closure relations:
         for (table_A, table_B) in self._rel_sorted[1]:
             self._set_cardinality(table_A, table_B)
