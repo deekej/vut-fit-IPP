@@ -208,7 +208,7 @@ class XMLAnalyser(object):
 
         # Iterating over all XML elements except the root:
         for elem in tree_iter:
-            if elem.tag in SQL_keywords:
+            if elem.tag.upper() in SQL_keywords:
                 raise KeywordError
 
             self._columns_count.clear()     # Reseting columns counter.
@@ -228,8 +228,8 @@ class XMLAnalyser(object):
             # Adding relations, references and parents mapping:
             for child in list(elem):
                 # Relation & reference: table -> child
-                table.set_relation(dbase.get_table(child_name))
-                table.set_reference(dbase.get_table(child_name))
+                table.set_relation(dbase.get_table(child.tag))
+                table.set_reference(dbase.get_table(child.tag))
                 table.set_fkey(child.tag + "_ID")
                 self._parents_map[child] = elem
 
@@ -256,7 +256,7 @@ class XMLAnalyser(object):
 
         # Iterating over all XML elements except the root:
         for elem in tree_iter:
-            if elem.tag in SQL_keywords:
+            if elem.tag.upper() in SQL_keywords:
                 raise KeywordError
 
             self._columns_count.clear()     # Reseting columns counter.
@@ -313,7 +313,7 @@ class XMLAnalyser(object):
 
         # Iterating over all XML elements except the root:
         for elem in tree_iter:
-            if elem.tag in SQL_keywords:
+            if elem.tag.upper() in SQL_keywords:
                 raise KeywordError
 
             self._columns_count.clear()     # Reseting columns counter.
