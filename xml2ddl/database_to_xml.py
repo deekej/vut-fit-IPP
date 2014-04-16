@@ -116,10 +116,9 @@ class DBaseToXML(object):
                 dist = self._dist[i][j]
                 if dist > 1 and dist != float('inf'):
                     table.set_relation(self._mapping[j])
-
-                    # We're finding the max distance also:
-                    if dist > self._max_dist:
-                        self._max_dist = dist
+                # We're finding the max distance also for later use:
+                if dist != float('inf') and dist > self._max_dist:
+                    self._max_dist = dist
 
     def _dist_init(self):
         """\
