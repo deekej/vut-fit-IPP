@@ -232,11 +232,12 @@ class DBaseToXML(object):
         for (table_A, table_B) in self._rel_sorted[0]:
             self._set_cardinality(table_A, table_B)
 
-        # Symmetric closure relations:
-        for (table_A, table_B) in self._rel_sorted[1]:
-            self._set_cardinality(table_A, table_B)
+        # Symmetric closure relations if they exist:
+        if len(self._rel_sorted) > 1:
+            for (table_A, table_B) in self._rel_sorted[1]:
+                self._set_cardinality(table_A, table_B)
         
-        # Transitive closure relations:
+        # Transitive closure relations if they exist:
         for i in range(2, self._max_dist + 1):
             for (table_A, table_B) in self._rel_sorted[i]:
                 table_C = self._penultimate_table(table_A, table_B)
@@ -255,6 +256,8 @@ class DBaseToXML(object):
         root_elem.text = "\n    "
         root_elem.tail = "\n"
 
+        table_elem = None
+
         for table in sorted(self._dbase.values()):
             table_attrs["name"] = table.name
             table_elem = XML.SubElement(root_elem, "table", table_attrs)
@@ -268,7 +271,13 @@ class DBaseToXML(object):
                 rel_elem.tail = "\n        "
             rel_elem.tail = "\n    "
 
-        table_elem.tail = "\n"
+        # Formating output for any number of tables of empty root:
+        if table_elem is not None:
+            table_elem.tail = "\n"
+        else:
+            root_elem.text = ""
+        
+        # Storing the generated tree:
         self._dbase.xml_repr = XML.ElementTree(root_elem)
 
     def run(self):
