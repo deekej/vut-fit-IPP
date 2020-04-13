@@ -1,0 +1,3 @@
+[submodule "json2xml/testsuite"]
+	path = json2xml/testsuite
+	url = git@github.com:deekej/vut-fit-IPP-json2xml-testsuite.git
